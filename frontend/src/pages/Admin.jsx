@@ -178,6 +178,7 @@ export default function Admin() {
       </div>
 
       <CollapsibleSection title="Users" headerExtra={<span className="text-xs text-gray-400">{users.length}</span>}>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
@@ -228,6 +229,7 @@ export default function Admin() {
             ))}
           </tbody>
         </table>
+        </div>
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -240,7 +242,7 @@ export default function Admin() {
         {restoreError && <div className="px-6 pt-4 text-sm text-status-withdrawn">{restoreError}</div>}
         {auditItems.length > 0 && (
           <>
-            <div className={auditExpanded ? "max-h-[32rem] overflow-y-auto" : ""}>
+            <div className={`overflow-x-auto ${auditExpanded ? "max-h-[32rem] overflow-y-auto" : ""}`}>
               <table className="w-full text-sm">
                 <thead className={auditExpanded ? "sticky top-0 bg-white z-10" : ""}>
                   <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
