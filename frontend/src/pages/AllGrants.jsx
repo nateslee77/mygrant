@@ -30,7 +30,8 @@ const FILTERABLE_COLUMNS = new Set([
   "program_manager",
 ]);
 
-const PAGE_SIZE = 500;
+const PAGE_SIZE = 500; // upper bound fetched from the backend; display pagination happens client-side below
+const PAGE_SIZE_OPTIONS = [15, 50, 100];
 
 export default function AllGrants() {
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ export default function AllGrants() {
   const [expiringWithin, setExpiringWithin] = useState("");
   const [columnFilters, setColumnFilters] = useState({}); // { [columnKey]: string[] of selected values }
   const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(15); // number, or "all"
   const [sortKey, setSortKey] = useState("project_name");
   const [sortDir, setSortDir] = useState("asc");
 
@@ -105,9 +107,10 @@ export default function AllGrants() {
     return copy;
   }, [filteredItems, sortKey, sortDir]);
 
-  const PAGE_ROWS = 500;
-  const totalPages = Math.max(1, Math.ceil(sortedItems.length / PAGE_ROWS));
-  const pageItems = sortedItems.slice((page - 1) * PAGE_ROWS, page * PAGE_ROWS);
+  const effectiveRowsPerPage = rowsPerPage === "all" ? Math.max(sortedItems.length, 1) : rowsPerPage;
+  const totalPages = Math.max(1, Math.ceil(sortedItems.length / effectiveRowsPerPage));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = sortedItems.slice((currentPage - 1) * effectiveRowsPerPage, currentPage * effectiveRowsPerPage);
 
   function handleSort(key) {
     if (sortKey === key) {
@@ -313,29 +316,66 @@ export default function AllGrants() {
           </table>
         </div>
 
-        {sortedItems.length > PAGE_ROWS && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
-            <span>
-              Showing {(page - 1) * PAGE_ROWS + 1}–{Math.min(page * PAGE_ROWS, sortedItems.length)} of {sortedItems.length}
-            </span>
-            <div className="flex gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
+          <span>
+            {sortedItems.length === 0
+              ? "0 grants"
+              : `Showing ${(currentPage - 1) * effectiveRowsPerPage + 1}–${Math.min(currentPage * effectiveRowsPerPage, sortedItems.length)} of ${sortedItems.length}`}
+          </span>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-400">Show</span>
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => {
+                    setRowsPerPage(n);
+                    setPage(1);
+                  }}
+                  className={`px-2 py-1 rounded text-xs font-medium ${
+                    rowsPerPage === n ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
               <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="px-3 py-1 rounded border border-gray-200 disabled:opacity-40"
+                onClick={() => {
+                  setRowsPerPage("all");
+                  setPage(1);
+                }}
+                className={`px-2 py-1 rounded text-xs font-medium ${
+                  rowsPerPage === "all" ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
               >
-                Prev
-              </button>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="px-3 py-1 rounded border border-gray-200 disabled:opacity-40"
-              >
-                Next
+                All
               </button>
             </div>
+
+            {rowsPerPage !== "all" && totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="px-3 py-1 rounded border border-gray-200 disabled:opacity-40"
+                >
+                  Prev
+                </button>
+                <span className="text-xs text-gray-400">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="px-3 py-1 rounded border border-gray-200 disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
