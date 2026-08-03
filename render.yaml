@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: mygrant-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: onboarding@resend.dev
+      - key: ALLOWED_INVITE_DOMAIN
+        value: parks.lacounty.gov
+      - key: FRONTEND_URL
+        sync: false
