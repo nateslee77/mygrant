@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import InlineEditField from "../components/InlineEditField";
+import Modal from "../components/Modal";
 import StatusPill from "../components/StatusPill";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
@@ -47,6 +48,14 @@ export default function GrantDetail() {
     },
   });
 
+  const deleteNote = useMutation({
+    mutationFn: async (noteId) => api.delete(`/grants/${id}/notes/${noteId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["grant-notes", id] });
+      setNoteToDelete(null);
+    },
+  });
+
   const toggleWithdrawn = useMutation({
     mutationFn: async (withdrawn) => (await api.patch(`/grants/${id}`, { withdrawn })).data,
     onSuccess: (data) => {
@@ -58,6 +67,7 @@ export default function GrantDetail() {
   const [editingSharePoint, setEditingSharePoint] = useState(false);
   const [sharePointDraft, setSharePointDraft] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
+  const [noteToDelete, setNoteToDelete] = useState(null);
 
   if (isLoading || !grant) {
     return <div className="text-sm text-gray-400">Loading…</div>;
@@ -309,15 +319,48 @@ export default function GrantDetail() {
         <div className="space-y-3">
           {notes.length === 0 && <p className="text-sm text-gray-400">No update history yet.</p>}
           {notes.map((n) => (
-            <div key={n.id} className="border-b border-gray-50 last:border-0 pb-3">
-              <div className="text-xs text-gray-400 mb-0.5">
-                {n.author_name} &middot; {new Date(n.created_at).toLocaleString()}
+            <div key={n.id} className="group border-b border-gray-50 last:border-0 pb-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs text-gray-400 mb-0.5">
+                  {n.author_name} &middot; {new Date(n.created_at).toLocaleString()}
+                </div>
+                <div className="text-sm text-[#1F2937] whitespace-pre-wrap">{n.note_text}</div>
               </div>
-              <div className="text-sm text-[#1F2937] whitespace-pre-wrap">{n.note_text}</div>
+              {canEdit && (
+                <button
+                  onClick={() => setNoteToDelete(n)}
+                  className="shrink-0 text-gray-300 opacity-0 group-hover:opacity-100 hover:text-status-withdrawn transition-opacity"
+                  aria-label="Delete note"
+                  title="Delete note"
+                >
+                  🗑
+                </button>
+              )}
             </div>
           ))}
         </div>
       </div>
+
+      <Modal open={!!noteToDelete} title="Delete this update?" onClose={() => setNoteToDelete(null)}>
+        <p className="text-sm text-gray-600 mb-5">
+          This permanently removes the note from the grant's Update History. This can't be undone (though a record
+          of the deletion remains in the admin Change Log).
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setNoteToDelete(null)}
+            className="text-sm font-medium text-gray-600 hover:text-gray-800 px-3 py-1.5"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => deleteNote.mutate(noteToDelete.id)}
+            className="bg-status-withdrawn hover:opacity-90 text-white text-sm font-medium px-4 py-1.5 rounded-md"
+          >
+            Delete
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

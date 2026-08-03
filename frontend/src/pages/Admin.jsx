@@ -10,6 +10,7 @@ const ACTION_LABELS = {
   updated_grant: "Updated grant",
   updated_sharepoint_link: "Updated SharePoint link",
   added_note: "Added update note",
+  deleted_note: "Deleted update note",
   invited_user: "Invited user",
   changed_role: "Changed user role",
   deactivated_user: "Deactivated user",
@@ -33,7 +34,7 @@ function describeEntry(entry) {
   if (entry.action === "invited_user" && entry.detail) {
     return { label, subject: entry.detail.email, extra: `Role: ${entry.detail.role}` };
   }
-  if (entry.action === "added_note" && entry.detail?.note_text) {
+  if ((entry.action === "added_note" || entry.action === "deleted_note") && entry.detail?.note_text) {
     return { label, subject, extra: `"${entry.detail.note_text.slice(0, 80)}${entry.detail.note_text.length > 80 ? "…" : ""}"` };
   }
   return { label, subject, extra: null };

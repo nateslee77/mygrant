@@ -125,7 +125,17 @@ def list_audit_log(
         .limit(page_size)
     ).all()
 
-    grant_ids = {e.record_id for e in entries if e.table_name == "grants" and e.record_id is not None}
+    def _related_grant_id(entry: AuditLog) -> uuid.UUID | None:
+        if entry.table_name == "grants" and entry.record_id is not None:
+            return entry.record_id
+        if entry.table_name == "grant_notes" and entry.detail and entry.detail.get("grant_id"):
+            try:
+                return uuid.UUID(entry.detail["grant_id"])
+            except ValueError:
+                return None
+        return None
+
+    grant_ids = {gid for e in entries if (gid := _related_grant_id(e)) is not None}
     grant_names: dict[uuid.UUID, str] = {}
     if grant_ids:
         rows = db.execute(select(Grant.id, Grant.project_name).where(Grant.id.in_(grant_ids))).all()
@@ -139,7 +149,7 @@ def list_audit_log(
             table_name=e.table_name,
             record_id=e.record_id,
             detail=e.detail,
-            grant_project_name=grant_names.get(e.record_id) if e.record_id else None,
+            grant_project_name=grant_names.get(_related_grant_id(e)),
             created_at=e.created_at,
         )
         for e in entries

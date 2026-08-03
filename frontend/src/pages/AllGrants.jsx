@@ -134,18 +134,26 @@ export default function AllGrants() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="inline-flex rounded-md border border-gray-200 p-0.5 bg-white">
-          {TABS.map((t) => (
-            <button
-              key={t.label}
-              onClick={() => resetToPageOne(setTab)(t.value)}
-              className={`px-4 py-1.5 text-sm rounded font-medium ${
-                tab === t.value ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-md border border-gray-200 p-0.5 bg-white">
+            {TABS.map((t) => (
+              <button
+                key={t.label}
+                onClick={() => resetToPageOne(setTab)(t.value)}
+                className={`px-4 py-1.5 text-sm rounded font-medium ${
+                  tab === t.value ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {data && (
+            <span className="text-sm text-gray-500">
+              {data.total} grant{data.total === 1 ? "" : "s"}
+              {hasActiveFilters || tab ? " match" + (data.total === 1 ? "es" : "") : ""}
+            </span>
+          )}
         </div>
 
         {canEdit && (

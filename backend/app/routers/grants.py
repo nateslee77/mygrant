@@ -244,6 +244,27 @@ def add_note(grant_id: uuid.UUID, payload: GrantNoteCreate, db: Session = Depend
     )
 
 
+@router.delete("/{grant_id}/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_note(grant_id: uuid.UUID, note_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(require_editor)):
+    grant = _get_grant_or_404(db, grant_id)
+    note = db.get(GrantNote, note_id)
+    if note is None or note.grant_id != grant.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Note not found")
+
+    write_audit_log(
+        db,
+        user_id=user.id,
+        action="deleted_note",
+        table_name="grant_notes",
+        record_id=note.id,
+        detail={"grant_id": str(grant.id), "note_text": note.note_text},
+    )
+
+    db.delete(note)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/{grant_id}/pdf")
 def download_pdf(grant_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     grant = _get_grant_or_404(db, grant_id)
