@@ -96,12 +96,36 @@ export default function GrantDetail() {
             )}
           </div>
           {canEdit && (
-            <button
-              onClick={() => toggleWithdrawn.mutate(!grant.withdrawn)}
-              className="text-xs text-gray-400 hover:text-status-withdrawn mt-1"
-            >
-              {grant.withdrawn ? "Un-mark as withdrawn" : "Mark as withdrawn"}
-            </button>
+            <div className="flex items-center gap-3 mt-1.5">
+              {!grant.withdrawn && (
+                <button
+                  onClick={() =>
+                    updateField.mutate({ status_override: grant.status === "Active" ? "closed" : "active" })
+                  }
+                  className="text-xs font-medium text-accent hover:underline"
+                >
+                  {grant.status === "Active" ? "Mark as Closed" : "Mark as Active"}
+                </button>
+              )}
+              {!grant.withdrawn && grant.status_override && (
+                <span className="text-xs text-gray-400">
+                  (manually set —{" "}
+                  <button
+                    onClick={() => updateField.mutate({ status_override: "auto" })}
+                    className="underline hover:text-gray-600"
+                  >
+                    reset to automatic
+                  </button>
+                  )
+                </span>
+              )}
+              <button
+                onClick={() => toggleWithdrawn.mutate(!grant.withdrawn)}
+                className="text-xs text-gray-400 hover:text-status-withdrawn"
+              >
+                {grant.withdrawn ? "Un-mark as withdrawn" : "Mark as withdrawn"}
+              </button>
+            </div>
           )}
         </div>
         <button
@@ -206,9 +230,10 @@ export default function GrantDetail() {
                 href={grant.sharepoint_link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-accent hover:underline break-all"
+                className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-dark text-white text-sm font-medium px-4 py-2 rounded-md"
               >
-                {grant.sharepoint_link}
+                Open SharePoint Folder
+                <span aria-hidden="true">↗</span>
               </a>
             ) : (
               <span className="text-sm text-gray-400">No link on file</span>

@@ -2,6 +2,41 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import Modal from "../components/Modal";
 import { api } from "../lib/api";
+import { useCappedList } from "../lib/useCappedList";
+
+const ACTION_LABELS = {
+  created_grant: "Created grant",
+  updated_grant: "Updated grant",
+  updated_sharepoint_link: "Updated SharePoint link",
+  added_note: "Added update note",
+  invited_user: "Invited user",
+  changed_role: "Changed user role",
+  deactivated_user: "Deactivated user",
+};
+
+function fieldLabel(key) {
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function describeEntry(entry) {
+  const label = ACTION_LABELS[entry.action] || entry.action;
+  const subject = entry.grant_project_name || entry.detail?.email || null;
+
+  if (entry.action === "updated_grant" && entry.detail?.after) {
+    const fields = Object.keys(entry.detail.after).map(fieldLabel).join(", ");
+    return { label, subject, extra: fields ? `Fields changed: ${fields}` : null };
+  }
+  if (entry.action === "changed_role" && entry.detail) {
+    return { label, subject, extra: `${entry.detail.before} → ${entry.detail.after}` };
+  }
+  if (entry.action === "invited_user" && entry.detail) {
+    return { label, subject: entry.detail.email, extra: `Role: ${entry.detail.role}` };
+  }
+  if (entry.action === "added_note" && entry.detail?.note_text) {
+    return { label, subject, extra: `"${entry.detail.note_text.slice(0, 80)}${entry.detail.note_text.length > 80 ? "…" : ""}"` };
+  }
+  return { label, subject, extra: null };
+}
 
 const USER_STATUS_STYLES = {
   invited: "bg-gray-100 text-gray-600",
@@ -18,6 +53,19 @@ export default function Admin() {
     queryKey: ["admin-users"],
     queryFn: async () => (await api.get("/admin/users")).data,
   });
+
+  const { data: auditLog } = useQuery({
+    queryKey: ["admin-audit-log"],
+    queryFn: async () => (await api.get("/admin/audit-log", { params: { page_size: 200 } })).data,
+  });
+  const auditItems = auditLog?.items || [];
+  const {
+    visibleItems: visibleAuditItems,
+    expanded: auditExpanded,
+    hasMore: auditHasMore,
+    remainingCount: auditRemainingCount,
+    toggle: toggleAuditExpanded,
+  } = useCappedList(auditItems, 10);
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("viewer");
@@ -157,6 +205,54 @@ export default function Admin() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <h2 className="text-sm font-semibold text-gray-500 px-6 pt-6 pb-3">Change Log</h2>
+        {auditItems.length === 0 && (
+          <div className="px-6 pb-6 text-sm text-gray-400">No changes recorded yet.</div>
+        )}
+        {auditItems.length > 0 && (
+          <>
+            <div className={auditExpanded ? "max-h-[32rem] overflow-y-auto" : ""}>
+              <table className="w-full text-sm">
+                <thead className={auditExpanded ? "sticky top-0 bg-white z-10" : ""}>
+                  <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
+                    <th className="px-6 py-2 font-medium">When</th>
+                    <th className="px-6 py-2 font-medium">By</th>
+                    <th className="px-6 py-2 font-medium">Action</th>
+                    <th className="px-6 py-2 font-medium">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleAuditItems.map((entry) => {
+                    const { label, subject, extra } = describeEntry(entry);
+                    return (
+                      <tr key={entry.id} className="border-b border-gray-50 last:border-0">
+                        <td className="px-6 py-3 text-gray-500 whitespace-nowrap">
+                          {new Date(entry.created_at).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-3 font-medium text-[#1F2937] whitespace-nowrap">{entry.user_name}</td>
+                        <td className="px-6 py-3 text-gray-700 whitespace-nowrap">
+                          {label}
+                          {subject && <span className="text-gray-500"> — {subject}</span>}
+                        </td>
+                        <td className="px-6 py-3 text-gray-500">{extra || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {auditHasMore && (
+              <div className="px-6 py-3 border-t border-gray-100 text-center">
+                <button onClick={toggleAuditExpanded} className="text-sm text-accent hover:underline font-medium">
+                  {auditExpanded ? "Show less" : `View all ${auditRemainingCount + visibleAuditItems.length} (${auditRemainingCount} more)`}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <Modal open={confirmAdminOpen} title="Grant admin access?" onClose={() => setConfirmAdminOpen(false)}>

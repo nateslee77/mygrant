@@ -18,7 +18,7 @@ const EXPIRING_OPTIONS = [
   { label: "Within 6 Months", value: "180" },
 ];
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 500;
 
 export default function AllGrants() {
   const navigate = useNavigate();
