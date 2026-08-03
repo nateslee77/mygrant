@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import CollapsibleSection from "../components/CollapsibleSection";
 import Modal from "../components/Modal";
 import { api } from "../lib/api";
 import { useCappedList } from "../lib/useCappedList";
@@ -153,8 +154,7 @@ export default function Admin() {
         {inviteSuccess && <div className="text-sm text-status-active mt-2">{inviteSuccess}</div>}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <h2 className="text-sm font-semibold text-gray-500 px-6 pt-6 pb-3">Users</h2>
+      <CollapsibleSection title="Users" headerExtra={<span className="text-xs text-gray-400">{users.length}</span>}>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
@@ -205,10 +205,12 @@ export default function Admin() {
             ))}
           </tbody>
         </table>
-      </div>
+      </CollapsibleSection>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <h2 className="text-sm font-semibold text-gray-500 px-6 pt-6 pb-3">Change Log</h2>
+      <CollapsibleSection
+        title="Change Log"
+        headerExtra={<span className="text-xs text-gray-400">{auditItems.length}</span>}
+      >
         {auditItems.length === 0 && (
           <div className="px-6 pb-6 text-sm text-gray-400">No changes recorded yet.</div>
         )}
@@ -253,7 +255,7 @@ export default function Admin() {
             )}
           </>
         )}
-      </div>
+      </CollapsibleSection>
 
       <Modal open={confirmAdminOpen} title="Grant admin access?" onClose={() => setConfirmAdminOpen(false)}>
         <p className="text-sm text-gray-600 mb-5">
