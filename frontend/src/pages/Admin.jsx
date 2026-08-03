@@ -30,8 +30,11 @@ function describeEntry(entry) {
   const subject = entry.grant_project_name || entry.detail?.project_name || entry.detail?.email || null;
 
   if (entry.action === "updated_grant" && entry.detail?.after) {
-    const fields = Object.keys(entry.detail.after).map(fieldLabel).join(", ");
-    return { label, subject, extra: fields ? `Fields changed: ${fields}` : null };
+    const before = entry.detail.before || {};
+    const after = entry.detail.after;
+    const fmt = (v) => (v === null || v === undefined || v === "" ? "(blank)" : String(v));
+    const parts = Object.keys(after).map((key) => `${fieldLabel(key)}: ${fmt(before[key])} → ${fmt(after[key])}`);
+    return { label, subject, extra: parts.join("; ") || null };
   }
   if (entry.action === "changed_role" && entry.detail) {
     return { label, subject, extra: `${entry.detail.before} → ${entry.detail.after}` };
@@ -242,15 +245,15 @@ export default function Admin() {
         {restoreError && <div className="px-6 pt-4 text-sm text-status-withdrawn">{restoreError}</div>}
         {auditItems.length > 0 && (
           <>
-            <div className={`overflow-x-auto ${auditExpanded ? "max-h-[32rem] overflow-y-auto" : ""}`}>
-              <table className="w-full text-sm">
+            <div className={auditExpanded ? "max-h-[32rem] overflow-y-auto" : ""}>
+              <table className="w-full text-sm table-fixed">
                 <thead className={auditExpanded ? "sticky top-0 bg-white z-10" : ""}>
                   <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
-                    <th className="px-6 py-2 font-medium">When</th>
-                    <th className="px-6 py-2 font-medium">By</th>
-                    <th className="px-6 py-2 font-medium">Action</th>
-                    <th className="px-6 py-2 font-medium">Details</th>
-                    <th className="px-6 py-2 font-medium">Actions</th>
+                    <th className="px-4 py-2 font-medium w-24">When</th>
+                    <th className="px-4 py-2 font-medium w-24">By</th>
+                    <th className="px-4 py-2 font-medium w-1/4">Action</th>
+                    <th className="px-4 py-2 font-medium">Details</th>
+                    <th className="px-4 py-2 font-medium w-16"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -258,17 +261,22 @@ export default function Admin() {
                     const { label, subject, extra } = describeEntry(entry);
                     const canRestore = RESTORABLE_ACTIONS.has(entry.action);
                     return (
-                      <tr key={entry.id} className="border-b border-gray-50 last:border-0">
-                        <td className="px-6 py-3 text-gray-500 whitespace-nowrap">
-                          {new Date(entry.created_at).toLocaleString()}
+                      <tr key={entry.id} className="border-b border-gray-50 last:border-0 align-top">
+                        <td className="px-4 py-3 text-gray-500 text-xs break-words">
+                          {new Date(entry.created_at).toLocaleString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
                         </td>
-                        <td className="px-6 py-3 font-medium text-[#1F2937] whitespace-nowrap">{entry.user_name}</td>
-                        <td className="px-6 py-3 text-gray-700 whitespace-nowrap">
+                        <td className="px-4 py-3 font-medium text-[#1F2937] break-words">{entry.user_name}</td>
+                        <td className="px-4 py-3 text-gray-700 break-words">
                           {label}
                           {subject && <span className="text-gray-500"> — {subject}</span>}
                         </td>
-                        <td className="px-6 py-3 text-gray-500">{extra || "—"}</td>
-                        <td className="px-6 py-3 whitespace-nowrap">
+                        <td className="px-4 py-3 text-gray-500 break-words">{extra || "—"}</td>
+                        <td className="px-4 py-3">
                           {canRestore && (
                             <button
                               onClick={() => restoreEntry.mutate(entry.id)}
