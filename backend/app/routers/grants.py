@@ -39,11 +39,15 @@ def _to_list_item(grant: Grant) -> GrantListItem:
         project_name=grant.project_name,
         grantor=grant.grantor,
         funding_source=grant.funding_source,
+        grant_officer=grant.grant_officer,
         status=compute_status(grant),
         district=grant.district,
+        orig_exp_date=grant.orig_exp_date,
         current_exp_date=grant.current_exp_date,
+        amended_exp_date=grant.amended_exp_date,
         grant_amount=grant.grant_amount,
         grants_manager=grant.grants_manager,
+        program_manager=grant.program_manager,
     )
 
 

@@ -23,7 +23,6 @@ export default function AllGrants() {
   const [search, setSearch] = useState("");
   const [district, setDistrict] = useState("");
   const [grantor, setGrantor] = useState("");
-  const [grantsManager, setGrantsManager] = useState("");
   const [fundingSource, setFundingSource] = useState("");
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState("project_name");
