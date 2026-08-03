@@ -12,10 +12,14 @@ const ACTION_LABELS = {
   updated_sharepoint_link: "Updated SharePoint link",
   added_note: "Added update note",
   deleted_note: "Deleted update note",
+  restored_grant: "Restored grant",
+  restored_note: "Restored update note",
   invited_user: "Invited user",
   changed_role: "Changed user role",
   deactivated_user: "Deactivated user",
 };
+
+const RESTORABLE_ACTIONS = new Set(["deleted_grant", "deleted_note"]);
 
 function fieldLabel(key) {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -35,7 +39,10 @@ function describeEntry(entry) {
   if (entry.action === "invited_user" && entry.detail) {
     return { label, subject: entry.detail.email, extra: `Role: ${entry.detail.role}` };
   }
-  if ((entry.action === "added_note" || entry.action === "deleted_note") && entry.detail?.note_text) {
+  if (
+    (entry.action === "added_note" || entry.action === "deleted_note" || entry.action === "restored_note") &&
+    entry.detail?.note_text
+  ) {
     return { label, subject, extra: `"${entry.detail.note_text.slice(0, 80)}${entry.detail.note_text.length > 80 ? "…" : ""}"` };
   }
   return { label, subject, extra: null };
@@ -76,6 +83,20 @@ export default function Admin() {
   const [inviteSuccess, setInviteSuccess] = useState("");
   const [confirmAdminOpen, setConfirmAdminOpen] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [restoreError, setRestoreError] = useState("");
+
+  const restoreEntry = useMutation({
+    mutationFn: async (entryId) => (await api.post(`/admin/audit-log/${entryId}/restore`)).data,
+    onSuccess: () => {
+      setRestoreError("");
+      queryClient.invalidateQueries({ queryKey: ["admin-audit-log"] });
+      queryClient.invalidateQueries({ queryKey: ["grants"] });
+      queryClient.invalidateQueries({ queryKey: ["grants-filter-options"] });
+    },
+    onError: (err) => {
+      setRestoreError(err.response?.data?.detail || "Failed to restore");
+    },
+  });
 
   const invite = useMutation({
     mutationFn: async ({ email, role }) => (await api.post("/admin/users/invite", { email, role })).data,
@@ -216,6 +237,7 @@ export default function Admin() {
         {auditItems.length === 0 && (
           <div className="px-6 pb-6 text-sm text-gray-400">No changes recorded yet.</div>
         )}
+        {restoreError && <div className="px-6 pt-4 text-sm text-status-withdrawn">{restoreError}</div>}
         {auditItems.length > 0 && (
           <>
             <div className={auditExpanded ? "max-h-[32rem] overflow-y-auto" : ""}>
@@ -226,11 +248,13 @@ export default function Admin() {
                     <th className="px-6 py-2 font-medium">By</th>
                     <th className="px-6 py-2 font-medium">Action</th>
                     <th className="px-6 py-2 font-medium">Details</th>
+                    <th className="px-6 py-2 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleAuditItems.map((entry) => {
                     const { label, subject, extra } = describeEntry(entry);
+                    const canRestore = RESTORABLE_ACTIONS.has(entry.action);
                     return (
                       <tr key={entry.id} className="border-b border-gray-50 last:border-0">
                         <td className="px-6 py-3 text-gray-500 whitespace-nowrap">
@@ -242,6 +266,17 @@ export default function Admin() {
                           {subject && <span className="text-gray-500"> — {subject}</span>}
                         </td>
                         <td className="px-6 py-3 text-gray-500">{extra || "—"}</td>
+                        <td className="px-6 py-3 whitespace-nowrap">
+                          {canRestore && (
+                            <button
+                              onClick={() => restoreEntry.mutate(entry.id)}
+                              disabled={restoreEntry.isPending}
+                              className="text-sm text-accent hover:underline font-medium disabled:opacity-50"
+                            >
+                              Restore
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}

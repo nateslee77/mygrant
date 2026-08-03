@@ -45,29 +45,6 @@ export default function AllGrants() {
   const [sortKey, setSortKey] = useState("project_name");
   const [sortDir, setSortDir] = useState("asc");
 
-  // Cheap full fetch to populate the distinct-value lists for each column filter menu
-  // (dataset is small, ~a few hundred rows) — independent of any active filters, so the
-  // option lists stay stable no matter what's currently selected.
-  const { data: filterSource } = useQuery({
-    queryKey: ["grants-filter-options"],
-    queryFn: async () => (await api.get("/grants", { params: { page: 1, page_size: 1000 } })).data,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const columnOptions = useMemo(() => {
-    const items = filterSource?.items || [];
-    const uniq = (key) => [...new Set(items.map((g) => g[key]).filter((v) => v !== null && v !== undefined && v !== ""))].sort();
-    return {
-      status: uniq("status"),
-      grantor: uniq("grantor"),
-      funding_source: uniq("funding_source"),
-      grant_officer: uniq("grant_officer"),
-      district: uniq("district").map(String),
-      grants_manager: uniq("grants_manager"),
-      program_manager: uniq("program_manager"),
-    };
-  }, [filterSource]);
-
   const activeColumnFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
   const hasActiveFilters = Boolean(search || expiringWithin || activeColumnFilterCount > 0);
 
@@ -83,6 +60,23 @@ export default function AllGrants() {
     queryKey: ["grants", queryParams],
     queryFn: async () => (await api.get("/grants", { params: queryParams })).data,
   });
+
+  // Column filter menu option lists are derived straight from the live query result above
+  // (no separate cached fetch), so they can never go stale relative to what's on screen —
+  // add/rename a manager elsewhere and it shows up here as soon as this list refetches.
+  const columnOptions = useMemo(() => {
+    const items = data?.items || [];
+    const uniq = (key) => [...new Set(items.map((g) => g[key]).filter((v) => v !== null && v !== undefined && v !== ""))].sort();
+    return {
+      status: uniq("status"),
+      grantor: uniq("grantor"),
+      funding_source: uniq("funding_source"),
+      grant_officer: uniq("grant_officer"),
+      district: uniq("district").map(String),
+      grants_manager: uniq("grants_manager"),
+      program_manager: uniq("program_manager"),
+    };
+  }, [data]);
 
   const filteredItems = useMemo(() => {
     const items = data?.items || [];
@@ -235,7 +229,7 @@ export default function AllGrants() {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-auto max-h-[70vh]">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-xs text-gray-500 border-b border-gray-200 bg-gray-50 shadow-sm">

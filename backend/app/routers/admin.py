@@ -9,11 +9,14 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import require_admin
 from app.core.security import generate_invite_token
-from app.models.models import AuditLog, Grant, User
+from app.models.models import AuditLog, Grant, GrantNote, User
 from app.schemas.audit import AuditLogOut, AuditLogResponse
+from app.schemas.grant import GrantCreate
 from app.schemas.user import InviteRequest, RoleChangeRequest, UserOut
 from app.services.audit import write_audit_log
 from app.services.email import send_invite_email
+
+RESTORABLE_ACTIONS = {"deleted_grant", "deleted_note"}
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -156,6 +159,102 @@ def list_audit_log(
     ]
 
     return AuditLogResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.post("/audit-log/{entry_id}/restore")
+def restore_audit_log_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    entry = db.get(AuditLog, entry_id)
+    if entry is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Change log entry not found")
+    if entry.action not in RESTORABLE_ACTIONS:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This change log entry isn't a deletion and can't be restored")
+
+    detail = entry.detail or {}
+
+    if entry.action == "deleted_grant":
+        snapshot = detail.get("snapshot")
+        if not snapshot:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "No snapshot was captured for this deletion (it happened before restore support was added)",
+            )
+        if entry.record_id is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing original grant id")
+        if db.get(Grant, entry.record_id) is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "A grant with this id already exists — already restored?")
+
+        parsed = GrantCreate(**{k: v for k, v in snapshot.items() if k != "created_at"})
+        restored = Grant(id=entry.record_id, **parsed.model_dump())
+        if snapshot.get("created_at"):
+            restored.created_at = datetime.fromisoformat(snapshot["created_at"])
+        db.add(restored)
+        db.flush()
+
+        for note in detail.get("notes_snapshot", []):
+            db.add(
+                GrantNote(
+                    id=uuid.UUID(note["id"]),
+                    grant_id=restored.id,
+                    user_id=uuid.UUID(note["user_id"]),
+                    note_text=note["note_text"],
+                    created_at=datetime.fromisoformat(note["created_at"]),
+                )
+            )
+
+        write_audit_log(
+            db,
+            user_id=admin.id,
+            action="restored_grant",
+            table_name="grants",
+            record_id=restored.id,
+            detail={
+                "project_name": restored.project_name,
+                "restored_from": str(entry.id),
+                "notes_restored": len(detail.get("notes_snapshot", [])),
+            },
+        )
+        db.commit()
+        return {"restored": True, "table": "grants", "id": str(restored.id)}
+
+    # deleted_note
+    grant_id_str = detail.get("grant_id")
+    if not grant_id_str:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing grant reference for this note")
+    grant_id = uuid.UUID(grant_id_str)
+    if db.get(Grant, grant_id) is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "The grant this note belonged to no longer exists — restore the grant first"
+        )
+    if entry.record_id is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing original note id")
+    if db.get(GrantNote, entry.record_id) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "A note with this id already exists — already restored?")
+
+    note_user_id = uuid.UUID(detail["note_user_id"]) if detail.get("note_user_id") else admin.id
+    note_created_at = (
+        datetime.fromisoformat(detail["note_created_at"]) if detail.get("note_created_at") else datetime.now(timezone.utc)
+    )
+
+    restored_note = GrantNote(
+        id=entry.record_id,
+        grant_id=grant_id,
+        user_id=note_user_id,
+        note_text=detail.get("note_text", ""),
+        created_at=note_created_at,
+    )
+    db.add(restored_note)
+    db.flush()
+
+    write_audit_log(
+        db,
+        user_id=admin.id,
+        action="restored_note",
+        table_name="grant_notes",
+        record_id=restored_note.id,
+        detail={"grant_id": grant_id_str, "note_text": restored_note.note_text, "restored_from": str(entry.id)},
+    )
+    db.commit()
+    return {"restored": True, "table": "grant_notes", "id": str(restored_note.id)}
 
 
 @router.patch("/users/{user_id}/deactivate", response_model=UserOut)

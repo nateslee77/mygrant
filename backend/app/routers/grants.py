@@ -169,13 +169,27 @@ def update_grant(grant_id: uuid.UUID, payload: GrantUpdate, db: Session = Depend
 def delete_grant(grant_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(require_admin)):
     grant = _get_grant_or_404(db, grant_id)
 
+    snapshot = GrantBase.model_validate(grant, from_attributes=True).model_dump(mode="json")
+    snapshot["created_at"] = grant.created_at.isoformat()
+
+    notes = db.scalars(select(GrantNote).where(GrantNote.grant_id == grant.id)).all()
+    notes_snapshot = [
+        {
+            "id": str(n.id),
+            "user_id": str(n.user_id),
+            "note_text": n.note_text,
+            "created_at": n.created_at.isoformat(),
+        }
+        for n in notes
+    ]
+
     write_audit_log(
         db,
         user_id=user.id,
         action="deleted_grant",
         table_name="grants",
         record_id=grant.id,
-        detail={"project_name": grant.project_name},
+        detail={"project_name": grant.project_name, "snapshot": snapshot, "notes_snapshot": notes_snapshot},
     )
 
     db.delete(grant)
@@ -275,7 +289,12 @@ def delete_note(grant_id: uuid.UUID, note_id: uuid.UUID, db: Session = Depends(g
         action="deleted_note",
         table_name="grant_notes",
         record_id=note.id,
-        detail={"grant_id": str(grant.id), "note_text": note.note_text},
+        detail={
+            "grant_id": str(grant.id),
+            "note_text": note.note_text,
+            "note_user_id": str(note.user_id),
+            "note_created_at": note.created_at.isoformat(),
+        },
     )
 
     db.delete(note)
