@@ -31,7 +31,7 @@ const FILTERABLE_COLUMNS = new Set([
 ]);
 
 const PAGE_SIZE = 500; // upper bound fetched from the backend; display pagination happens client-side below
-const PAGE_SIZE_OPTIONS = [15, 50, 100];
+const PAGE_SIZE_OPTIONS = [10, 50, 100];
 
 export default function AllGrants() {
   const navigate = useNavigate();
@@ -43,7 +43,7 @@ export default function AllGrants() {
   const [expiringWithin, setExpiringWithin] = useState("");
   const [columnFilters, setColumnFilters] = useState({}); // { [columnKey]: string[] of selected values }
   const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(15); // number, or "all"
+  const [rowsPerPage, setRowsPerPage] = useState(10); // number, or "all"
   const [sortKey, setSortKey] = useState("project_name");
   const [sortDir, setSortDir] = useState("asc");
 
