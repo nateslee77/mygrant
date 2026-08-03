@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import NotificationBell from "./NotificationBell";
@@ -19,18 +20,29 @@ function pageTitleFor(pathname) {
   return "";
 }
 
+const SIDEBAR_STORAGE_KEY = "gms-sidebar-collapsed";
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true");
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed));
+  }, [collapsed]);
 
   return (
     <div className="flex h-screen bg-[#F8F9FA] text-[#1F2937]">
-      <aside className="w-56 shrink-0 bg-white border-r border-gray-200 flex flex-col">
-        <div className="px-5 py-5 border-b border-gray-100">
+      <aside
+        className={`shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-hidden transition-all duration-200 ${
+          collapsed ? "w-0 border-r-0" : "w-56"
+        }`}
+      >
+        <div className="w-56 px-5 py-5 border-b border-gray-100">
           <div className="font-semibold text-sm leading-tight">LA County Parks</div>
           <div className="text-xs text-gray-500">Grants Management</div>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="w-56 flex-1 px-3 py-4 space-y-1">
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
@@ -62,7 +74,20 @@ export default function Layout() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 shrink-0 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-          <h1 className="text-lg font-semibold">{pageTitleFor(location.pathname)}</h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setCollapsed((c) => !c)}
+              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500"
+              aria-label={collapsed ? "Show sidebar" : "Hide sidebar"}
+              title={collapsed ? "Show sidebar" : "Hide sidebar"}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <line x1="10" y1="4" x2="10" y2="20" />
+              </svg>
+            </button>
+            <h1 className="text-lg font-semibold">{pageTitleFor(location.pathname)}</h1>
+          </div>
           <div className="flex items-center gap-4">
             <NotificationBell />
             <UserMenu user={user} logout={logout} />

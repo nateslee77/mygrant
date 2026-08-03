@@ -62,6 +62,7 @@ class GrantListItem(BaseModel):
     grantor: str | None
     funding_source: str | None
     grant_officer: str | None
+    scope: str | None
     status: str
     district: int | None
     orig_exp_date: date | None
@@ -70,6 +71,7 @@ class GrantListItem(BaseModel):
     grant_amount: Decimal | None
     grants_manager: str | None
     program_manager: str | None
+    sharepoint_link: str | None
 
     class Config:
         from_attributes = True

@@ -1,4 +1,5 @@
 import uuid
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
@@ -40,6 +41,7 @@ def _to_list_item(grant: Grant) -> GrantListItem:
         grantor=grant.grantor,
         funding_source=grant.funding_source,
         grant_officer=grant.grant_officer,
+        scope=grant.scope,
         status=compute_status(grant),
         district=grant.district,
         orig_exp_date=grant.orig_exp_date,
@@ -48,6 +50,7 @@ def _to_list_item(grant: Grant) -> GrantListItem:
         grant_amount=grant.grant_amount,
         grants_manager=grant.grants_manager,
         program_manager=grant.program_manager,
+        sharepoint_link=grant.sharepoint_link,
     )
 
 
@@ -70,6 +73,7 @@ def list_grants(
     grants_manager: str | None = None,
     funding_source: str | None = None,
     search: str | None = None,
+    expiring_within: int | None = None,
     page: int = 1,
     page_size: int = 50,
     db: Session = Depends(get_db),
@@ -91,6 +95,14 @@ def list_grants(
 
     if status_filter:
         all_matching = [g for g in all_matching if compute_status(g) == status_filter]
+
+    if expiring_within is not None:
+        today = date.today()
+        window_end = today + timedelta(days=expiring_within)
+        all_matching = [
+            g for g in all_matching
+            if g.current_exp_date is not None and today <= g.current_exp_date <= window_end
+        ]
 
     total = len(all_matching)
     start = (page - 1) * page_size
