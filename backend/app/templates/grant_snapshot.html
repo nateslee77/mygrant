@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: letter; margin: 2.2cm 2cm; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1F2937; font-size: 11pt; line-height: 1.45; }
+  h1 { font-size: 20pt; margin-bottom: 2px; }
+  .status-pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 9pt;
+    font-weight: 600; color: white; margin-left: 8px; vertical-align: middle;
+  }
+  .status-active { background-color: #16A34A; }
+  .status-closed { background-color: #6B7280; }
+  .status-withdrawn { background-color: #DC2626; }
+  .subheader { color: #6B7280; font-size: 10pt; margin-bottom: 18px; }
+  table.fields { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  table.fields td { padding: 5px 8px; border-bottom: 1px solid #E5E7EB; vertical-align: top; }
+  table.fields td.label { width: 32%; color: #6B7280; font-weight: 600; }
+  h2 { font-size: 13pt; border-bottom: 2px solid #1F2937; padding-bottom: 4px; margin-top: 24px; margin-bottom: 10px; }
+  .scope-text { white-space: pre-wrap; }
+  .sharepoint-link { word-break: break-all; color: #1D4ED8; }
+  .note { border-bottom: 1px solid #E5E7EB; padding: 8px 0; }
+  .note-meta { color: #6B7280; font-size: 9pt; margin-bottom: 2px; }
+  .footer { margin-top: 32px; padding-top: 10px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 9pt; }
+</style>
+</head>
+<body>
+
+  <h1>{{ grant.project_name }}
+    <span class="status-pill status-{{ status_class }}">{{ status }}</span>
+  </h1>
+  <div class="subheader">District {{ grant.district if grant.district is not none else "—" }}</div>
+
+  <table class="fields">
+    <tr><td class="label">Grantor</td><td>{{ grant.grantor or "—" }}</td></tr>
+    <tr><td class="label">Funding Source / Grant Program</td><td>{{ grant.funding_source or "—" }}</td></tr>
+    <tr><td class="label">Grant Officer</td><td>{{ grant.grant_officer or "—" }}</td></tr>
+    <tr><td class="label">Current Expiration Date</td><td>{{ grant.current_exp_date or "—" }}</td></tr>
+    <tr><td class="label">Original Expiration Date</td><td>{{ grant.orig_exp_date or "—" }}</td></tr>
+    <tr><td class="label">Amended Expiration Date</td><td>{{ grant.amended_exp_date or "—" }}</td></tr>
+    <tr><td class="label">Grant Amount</td><td>{{ amount_display }}</td></tr>
+    <tr><td class="label">Grants Manager</td><td>{{ grant.grants_manager or "—" }}</td></tr>
+    <tr><td class="label">Program Manager</td><td>{{ grant.program_manager or "—" }}</td></tr>
+  </table>
+
+  <h2>Scope</h2>
+  <div class="scope-text">{{ grant.scope or "—" }}</div>
+
+  <h2>SharePoint Folder Link</h2>
+  <div class="sharepoint-link">{{ grant.sharepoint_link or "No link on file" }}</div>
+
+  <h2>Update History</h2>
+  {% if notes %}
+    {% for note in notes %}
+      <div class="note">
+        <div class="note-meta">{{ note.user.name }} — {{ note.created_at.strftime("%m/%d/%Y %I:%M %p") }}</div>
+        <div>{{ note.note_text }}</div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>No update history entries.</p>
+  {% endif %}
+
+  <div class="footer">
+    Generated on {{ generated_date }} by {{ generated_by }}.<br>
+    This is a snapshot of grant data as of the generation date above; it does not reflect changes made afterward.
+  </div>
+
+</body>
+</html>

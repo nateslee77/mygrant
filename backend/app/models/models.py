@@ -1,0 +1,103 @@
+import uuid
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.database import Base
+
+user_role_enum = ENUM("admin", "editor", "viewer", name="user_role", create_type=False)
+user_status_enum = ENUM("invited", "active", "deactivated", name="user_status", create_type=False)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    role: Mapped[str] = mapped_column(user_role_enum, nullable=False)
+    status: Mapped[str] = mapped_column(user_status_enum, nullable=False, default="invited")
+    invite_token: Mapped[str | None] = mapped_column(String, nullable=True, unique=True)
+    invite_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Grant(Base):
+    __tablename__ = "grants"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    grantor: Mapped[str | None] = mapped_column(String, nullable=True)
+    funding_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    grant_officer: Mapped[str | None] = mapped_column(String, nullable=True)
+    scope: Mapped[str | None] = mapped_column(Text, nullable=True)
+    current_exp_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    orig_exp_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    amended_exp_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    grant_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    grants_manager: Mapped[str | None] = mapped_column(String, nullable=True)
+    program_manager: Mapped[str | None] = mapped_column(String, nullable=True)
+    district: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sharepoint_link: Mapped[str | None] = mapped_column(String, nullable=True)
+    withdrawn: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    notes: Mapped[list["GrantNote"]] = relationship(
+        back_populates="grant", cascade="all, delete-orphan", order_by="GrantNote.created_at.desc()"
+    )
+
+
+class GrantNote(Base):
+    __tablename__ = "grant_notes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    grant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("grants.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    note_text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    grant: Mapped["Grant"] = relationship(back_populates="notes")
+    user: Mapped["User"] = relationship()
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    action: Mapped[str] = mapped_column(String, nullable=False)
+    table_name: Mapped[str] = mapped_column(String, nullable=False)
+    record_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    detail: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("grants.id", ondelete="CASCADE"), nullable=True)
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
