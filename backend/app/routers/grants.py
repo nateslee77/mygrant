@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, require_editor
+from app.core.deps import get_current_user, require_admin, require_editor
 from app.models.models import Grant, GrantNote, User
 from app.schemas.grant import (
     GrantBase,
@@ -163,6 +163,24 @@ def update_grant(grant_id: uuid.UUID, payload: GrantUpdate, db: Session = Depend
     db.commit()
     db.refresh(grant)
     return _to_out(grant)
+
+
+@router.delete("/{grant_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_grant(grant_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+    grant = _get_grant_or_404(db, grant_id)
+
+    write_audit_log(
+        db,
+        user_id=user.id,
+        action="deleted_grant",
+        table_name="grants",
+        record_id=grant.id,
+        detail={"project_name": grant.project_name},
+    )
+
+    db.delete(grant)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/{grant_id}/sharepoint-link", response_model=GrantOut)

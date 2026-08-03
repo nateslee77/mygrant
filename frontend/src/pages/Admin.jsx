@@ -8,6 +8,7 @@ import { useCappedList } from "../lib/useCappedList";
 const ACTION_LABELS = {
   created_grant: "Created grant",
   updated_grant: "Updated grant",
+  deleted_grant: "Deleted grant",
   updated_sharepoint_link: "Updated SharePoint link",
   added_note: "Added update note",
   deleted_note: "Deleted update note",
@@ -22,7 +23,7 @@ function fieldLabel(key) {
 
 function describeEntry(entry) {
   const label = ACTION_LABELS[entry.action] || entry.action;
-  const subject = entry.grant_project_name || entry.detail?.email || null;
+  const subject = entry.grant_project_name || entry.detail?.project_name || entry.detail?.email || null;
 
   if (entry.action === "updated_grant" && entry.detail?.after) {
     const fields = Object.keys(entry.detail.after).map(fieldLabel).join(", ");

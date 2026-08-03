@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import InlineEditField from "../components/InlineEditField";
 import Modal from "../components/Modal";
 import StatusPill from "../components/StatusPill";
@@ -14,7 +14,9 @@ export default function GrantDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const canEdit = user?.role === "admin" || user?.role === "editor";
+  const isAdmin = user?.role === "admin";
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: grant, isLoading } = useQuery({
     queryKey: ["grant", id],
@@ -63,11 +65,19 @@ export default function GrantDetail() {
     },
   });
 
+  const deleteGrant = useMutation({
+    mutationFn: async () => api.delete(`/grants/${id}`),
+    onSuccess: () => {
+      navigate("/grants");
+    },
+  });
+
   const [scopeExpanded, setScopeExpanded] = useState(false);
   const [editingSharePoint, setEditingSharePoint] = useState(false);
   const [sharePointDraft, setSharePointDraft] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [noteToDelete, setNoteToDelete] = useState(null);
+  const [confirmDeleteGrant, setConfirmDeleteGrant] = useState(false);
 
   if (isLoading || !grant) {
     return <div className="text-sm text-gray-400">Loading…</div>;
@@ -138,12 +148,24 @@ export default function GrantDetail() {
             </div>
           )}
         </div>
-        <button
-          onClick={handleDownloadPdf}
-          className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md whitespace-nowrap"
-        >
-          Download PDF Snapshot
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleDownloadPdf}
+            className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md whitespace-nowrap"
+          >
+            Download PDF Snapshot
+          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setConfirmDeleteGrant(true)}
+              className="bg-white border border-gray-300 hover:bg-status-withdrawn/5 hover:border-status-withdrawn hover:text-status-withdrawn text-gray-500 text-sm font-medium px-3 py-2 rounded-md whitespace-nowrap"
+              aria-label="Delete grant"
+              title="Delete grant"
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
@@ -358,6 +380,28 @@ export default function GrantDetail() {
             className="bg-status-withdrawn hover:opacity-90 text-white text-sm font-medium px-4 py-1.5 rounded-md"
           >
             Delete
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={confirmDeleteGrant} title="Delete this grant?" onClose={() => setConfirmDeleteGrant(false)}>
+        <p className="text-sm text-gray-600 mb-5">
+          This permanently deletes <strong>{grant.project_name}</strong>, including its full Update History. This
+          can't be undone. (A record that this grant existed and was deleted remains in the admin Change Log.)
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setConfirmDeleteGrant(false)}
+            className="text-sm font-medium text-gray-600 hover:text-gray-800 px-3 py-1.5"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => deleteGrant.mutate()}
+            disabled={deleteGrant.isPending}
+            className="bg-status-withdrawn hover:opacity-90 text-white text-sm font-medium px-4 py-1.5 rounded-md disabled:opacity-60"
+          >
+            Delete Grant
           </button>
         </div>
       </Modal>
