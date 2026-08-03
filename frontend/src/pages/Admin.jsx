@@ -249,11 +249,11 @@ export default function Admin() {
               <table className="w-full text-sm table-fixed">
                 <thead className={auditExpanded ? "sticky top-0 bg-white z-10" : ""}>
                   <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
-                    <th className="px-4 py-2 font-medium w-24">When</th>
-                    <th className="px-4 py-2 font-medium w-24">By</th>
-                    <th className="px-4 py-2 font-medium w-1/4">Action</th>
-                    <th className="px-4 py-2 font-medium">Details</th>
-                    <th className="px-4 py-2 font-medium w-16"></th>
+                    <th className="px-3 py-2 font-medium" style={{ width: "14%" }}>When</th>
+                    <th className="px-3 py-2 font-medium" style={{ width: "12%" }}>By</th>
+                    <th className="px-3 py-2 font-medium" style={{ width: "22%" }}>Action</th>
+                    <th className="px-3 py-2 font-medium" style={{ width: "40%" }}>Details</th>
+                    <th className="px-3 py-2 font-medium" style={{ width: "12%" }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -262,7 +262,7 @@ export default function Admin() {
                     const canRestore = RESTORABLE_ACTIONS.has(entry.action);
                     return (
                       <tr key={entry.id} className="border-b border-gray-50 last:border-0 align-top">
-                        <td className="px-4 py-3 text-gray-500 text-xs break-words">
+                        <td className="px-3 py-3 text-gray-500 text-xs break-words">
                           {new Date(entry.created_at).toLocaleString(undefined, {
                             month: "short",
                             day: "numeric",
@@ -270,18 +270,18 @@ export default function Admin() {
                             minute: "2-digit",
                           })}
                         </td>
-                        <td className="px-4 py-3 font-medium text-[#1F2937] break-words">{entry.user_name}</td>
-                        <td className="px-4 py-3 text-gray-700 break-words">
+                        <td className="px-3 py-3 font-medium text-[#1F2937] break-words">{entry.user_name}</td>
+                        <td className="px-3 py-3 text-gray-700 break-words">
                           {label}
                           {subject && <span className="text-gray-500"> — {subject}</span>}
                         </td>
-                        <td className="px-4 py-3 text-gray-500 break-words">{extra || "—"}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 text-gray-500 break-words">{extra || "—"}</td>
+                        <td className="px-3 py-3">
                           {canRestore && (
                             <button
                               onClick={() => restoreEntry.mutate(entry.id)}
                               disabled={restoreEntry.isPending}
-                              className="text-sm text-accent hover:underline font-medium disabled:opacity-50"
+                              className="text-xs text-accent hover:underline font-medium disabled:opacity-50 whitespace-nowrap"
                             >
                               Restore
                             </button>
