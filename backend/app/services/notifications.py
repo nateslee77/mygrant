@@ -16,7 +16,11 @@ def notify_users(db: Session, *, user_ids: list[uuid.UUID], grant_id: uuid.UUID 
 
 def notify_active_users_except(db: Session, *, exclude_user_id: uuid.UUID | None, grant_id: uuid.UUID | None, type_: str, message: str) -> None:
     user_ids = db.scalars(
-        select(User.id).where(User.status == "active", User.id != exclude_user_id)
+        select(User.id).where(
+            User.status == "active",
+            User.role.in_(("admin", "editor")),
+            User.id != exclude_user_id,
+        )
     ).all()
     notify_users(db, user_ids=user_ids, grant_id=grant_id, type_=type_, message=message)
 
@@ -49,12 +53,14 @@ def check_and_notify_expiring_grants(db: Session) -> None:
         ).all()
     )
 
-    active_user_ids = db.scalars(select(User.id).where(User.status == "active")).all()
-    if not active_user_ids:
+    recipient_ids = db.scalars(
+        select(User.id).where(User.status == "active", User.role.in_(("admin", "editor")))
+    ).all()
+    if not recipient_ids:
         return
 
     for grant in candidate_grants:
         if grant.id in already_notified_grant_ids:
             continue
         message = f"{grant.project_name} is expiring on {grant.current_exp_date.isoformat()}"
-        notify_users(db, user_ids=active_user_ids, grant_id=grant.id, type_="grant_expiring", message=message)
+        notify_users(db, user_ids=recipient_ids, grant_id=grant.id, type_="grant_expiring", message=message)
