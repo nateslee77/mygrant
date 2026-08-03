@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -20,6 +21,7 @@ class GrantBase(BaseModel):
     district: int | None = None
     sharepoint_link: str | None = None
     withdrawn: bool = False
+    status_override: Literal["active", "closed"] | None = None
 
 
 class GrantCreate(GrantBase):
@@ -40,6 +42,7 @@ class GrantUpdate(BaseModel):
     program_manager: str | None = None
     district: int | None = None
     withdrawn: bool | None = None
+    status_override: Literal["active", "closed", "auto"] | None = None
 
 
 class SharePointLinkUpdate(BaseModel):

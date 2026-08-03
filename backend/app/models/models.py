@@ -56,6 +56,9 @@ class Grant(Base):
     district: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sharepoint_link: Mapped[str | None] = mapped_column(String, nullable=True)
     withdrawn: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Manual override of the date-computed Active/Closed status ('active' | 'closed' | null).
+    # null means "compute from current_exp_date as usual". Ignored if withdrawn is true.
+    status_override: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

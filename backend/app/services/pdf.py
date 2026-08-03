@@ -23,6 +23,7 @@ def render_grant_pdf(grant: Grant, notes: list[GrantNote], status: str, generate
 
     template = _env.get_template("grant_snapshot.html")
     amount_display = f"${grant.grant_amount:,.2f}" if grant.grant_amount is not None else "—"
+    sharepoint_is_url = bool(grant.sharepoint_link) and grant.sharepoint_link.strip().lower().startswith(("http://", "https://"))
 
     html_content = template.render(
         grant=grant,
@@ -30,6 +31,7 @@ def render_grant_pdf(grant: Grant, notes: list[GrantNote], status: str, generate
         status=status,
         status_class=_STATUS_CLASS.get(status, "closed"),
         amount_display=amount_display,
+        sharepoint_is_url=sharepoint_is_url,
         generated_date=date.today().strftime("%m/%d/%Y"),
         generated_by=generated_by_name,
     )

@@ -146,6 +146,8 @@ def update_grant(grant_id: uuid.UUID, payload: GrantUpdate, db: Session = Depend
     grant = _get_grant_or_404(db, grant_id)
 
     changes = payload.model_dump(exclude_unset=True)
+    if changes.get("status_override") == "auto":
+        changes["status_override"] = None
     before = {k: getattr(grant, k) for k in changes}
     for key, value in changes.items():
         setattr(grant, key, value)

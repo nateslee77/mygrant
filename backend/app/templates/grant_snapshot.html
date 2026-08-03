@@ -20,6 +20,10 @@
   h2 { font-size: 13pt; border-bottom: 2px solid #1F2937; padding-bottom: 4px; margin-top: 24px; margin-bottom: 10px; }
   .scope-text { white-space: pre-wrap; }
   .sharepoint-link { word-break: break-all; color: #1D4ED8; }
+  .sharepoint-button {
+    display: inline-block; background-color: #1D4ED8; color: white; text-decoration: none;
+    padding: 8px 16px; border-radius: 6px; font-size: 10pt; font-weight: 600;
+  }
   .note { border-bottom: 1px solid #E5E7EB; padding: 8px 0; }
   .note-meta { color: #6B7280; font-size: 9pt; margin-bottom: 2px; }
   .footer { margin-top: 32px; padding-top: 10px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 9pt; }
@@ -48,7 +52,13 @@
   <div class="scope-text">{{ grant.scope or "—" }}</div>
 
   <h2>SharePoint Folder Link</h2>
-  <div class="sharepoint-link">{{ grant.sharepoint_link or "No link on file" }}</div>
+  {% if sharepoint_is_url %}
+    <a class="sharepoint-button" href="{{ grant.sharepoint_link }}">Open SharePoint Folder ↗</a>
+  {% elif grant.sharepoint_link %}
+    <div class="sharepoint-link">{{ grant.sharepoint_link }}</div>
+  {% else %}
+    <div class="sharepoint-link">No link on file</div>
+  {% endif %}
 
   <h2>Update History</h2>
   {% if notes %}

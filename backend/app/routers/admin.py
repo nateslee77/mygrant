@@ -3,13 +3,14 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import require_admin
 from app.core.security import generate_invite_token
-from app.models.models import User
+from app.models.models import AuditLog, Grant, User
+from app.schemas.audit import AuditLogOut, AuditLogResponse
 from app.schemas.user import InviteRequest, RoleChangeRequest, UserOut
 from app.services.audit import write_audit_log
 from app.services.email import send_invite_email
@@ -104,6 +105,47 @@ def change_role(user_id: uuid.UUID, payload: RoleChangeRequest, db: Session = De
     db.commit()
     db.refresh(target)
     return target
+
+
+@router.get("/audit-log", response_model=AuditLogResponse)
+def list_audit_log(
+    page: int = 1,
+    page_size: int = 50,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    total = db.query(AuditLog).count()
+    start = (page - 1) * page_size
+
+    entries = db.scalars(
+        select(AuditLog)
+        .options(joinedload(AuditLog.user))
+        .order_by(AuditLog.created_at.desc())
+        .offset(start)
+        .limit(page_size)
+    ).all()
+
+    grant_ids = {e.record_id for e in entries if e.table_name == "grants" and e.record_id is not None}
+    grant_names: dict[uuid.UUID, str] = {}
+    if grant_ids:
+        rows = db.execute(select(Grant.id, Grant.project_name).where(Grant.id.in_(grant_ids))).all()
+        grant_names = {row[0]: row[1] for row in rows}
+
+    items = [
+        AuditLogOut(
+            id=e.id,
+            user_name=e.user.name if e.user else "System",
+            action=e.action,
+            table_name=e.table_name,
+            record_id=e.record_id,
+            detail=e.detail,
+            grant_project_name=grant_names.get(e.record_id) if e.record_id else None,
+            created_at=e.created_at,
+        )
+        for e in entries
+    ]
+
+    return AuditLogResponse(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.patch("/users/{user_id}/deactivate", response_model=UserOut)
