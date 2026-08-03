@@ -34,7 +34,9 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         value=token,
         httponly=True,
         secure=True,
-        samesite="lax",
+        # frontend (Vercel) and backend (Render) are different sites, so the
+        # refresh cookie must be SameSite=None to be sent on cross-site fetches.
+        samesite="none",
         max_age=7 * 24 * 60 * 60,
         path="/auth",
     )
