@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ColumnFilterMenu from "../components/ColumnFilterMenu";
 import StatusPill from "../components/StatusPill";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
@@ -18,6 +19,17 @@ const EXPIRING_OPTIONS = [
   { label: "Within 6 Months", value: "180" },
 ];
 
+// Columns that get a checkbox filter menu on their header (small, discrete value sets).
+const FILTERABLE_COLUMNS = new Set([
+  "status",
+  "grantor",
+  "funding_source",
+  "grant_officer",
+  "district",
+  "grants_manager",
+  "program_manager",
+]);
+
 const PAGE_SIZE = 500;
 
 export default function AllGrants() {
@@ -27,41 +39,43 @@ export default function AllGrants() {
 
   const [tab, setTab] = useState(null);
   const [search, setSearch] = useState("");
-  const [district, setDistrict] = useState("");
-  const [grantor, setGrantor] = useState("");
-  const [fundingSource, setFundingSource] = useState("");
   const [expiringWithin, setExpiringWithin] = useState("");
+  const [columnFilters, setColumnFilters] = useState({}); // { [columnKey]: string[] of selected values }
   const [page, setPage] = useState(1);
   const [sortKey, setSortKey] = useState("project_name");
   const [sortDir, setSortDir] = useState("asc");
 
-  // Cheap full fetch to populate filter dropdown option lists (dataset is small, ~a few hundred rows).
+  // Cheap full fetch to populate the distinct-value lists for each column filter menu
+  // (dataset is small, ~a few hundred rows) — independent of any active filters, so the
+  // option lists stay stable no matter what's currently selected.
   const { data: filterSource } = useQuery({
     queryKey: ["grants-filter-options"],
     queryFn: async () => (await api.get("/grants", { params: { page: 1, page_size: 1000 } })).data,
     staleTime: 5 * 60 * 1000,
   });
 
-  const options = useMemo(() => {
+  const columnOptions = useMemo(() => {
     const items = filterSource?.items || [];
-    const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort();
+    const uniq = (key) => [...new Set(items.map((g) => g[key]).filter((v) => v !== null && v !== undefined && v !== ""))].sort();
     return {
-      districts: uniq(items.map((g) => g.district)),
-      grantors: uniq(items.map((g) => g.grantor)),
-      fundingSources: uniq(items.map((g) => g.funding_source)),
+      status: uniq("status"),
+      grantor: uniq("grantor"),
+      funding_source: uniq("funding_source"),
+      grant_officer: uniq("grant_officer"),
+      district: uniq("district").map(String),
+      grants_manager: uniq("grants_manager"),
+      program_manager: uniq("program_manager"),
     };
   }, [filterSource]);
 
-  const hasActiveFilters = Boolean(district || grantor || fundingSource || expiringWithin || search);
+  const activeColumnFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
+  const hasActiveFilters = Boolean(search || expiringWithin || activeColumnFilterCount > 0);
 
   const queryParams = {
-    page,
+    page: 1,
     page_size: PAGE_SIZE,
     ...(tab ? { status: tab } : {}),
     ...(search ? { search } : {}),
-    ...(district ? { district } : {}),
-    ...(grantor ? { grantor } : {}),
-    ...(fundingSource ? { funding_source: fundingSource } : {}),
     ...(expiringWithin ? { expiring_within: expiringWithin } : {}),
   };
 
@@ -70,9 +84,19 @@ export default function AllGrants() {
     queryFn: async () => (await api.get("/grants", { params: queryParams })).data,
   });
 
-  const items = data?.items || [];
+  const filteredItems = useMemo(() => {
+    const items = data?.items || [];
+    return items.filter((g) =>
+      Object.entries(columnFilters).every(([key, selected]) => {
+        if (!selected || selected.length === 0) return true;
+        const value = key === "district" ? String(g[key] ?? "") : g[key];
+        return selected.includes(value);
+      })
+    );
+  }, [data, columnFilters]);
+
   const sortedItems = useMemo(() => {
-    const copy = [...items];
+    const copy = [...filteredItems];
     copy.sort((a, b) => {
       let av = a[sortKey];
       let bv = b[sortKey];
@@ -85,9 +109,11 @@ export default function AllGrants() {
       return 0;
     });
     return copy;
-  }, [items, sortKey, sortDir]);
+  }, [filteredItems, sortKey, sortDir]);
 
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+  const PAGE_ROWS = 500;
+  const totalPages = Math.max(1, Math.ceil(sortedItems.length / PAGE_ROWS));
+  const pageItems = sortedItems.slice((page - 1) * PAGE_ROWS, page * PAGE_ROWS);
 
   function handleSort(key) {
     if (sortKey === key) {
@@ -105,12 +131,15 @@ export default function AllGrants() {
     };
   }
 
+  function setColumnFilter(key, values) {
+    setColumnFilters((prev) => ({ ...prev, [key]: values }));
+    setPage(1);
+  }
+
   function clearFilters() {
     setSearch("");
-    setDistrict("");
-    setGrantor("");
-    setFundingSource("");
     setExpiringWithin("");
+    setColumnFilters({});
     setPage(1);
   }
 
@@ -148,12 +177,10 @@ export default function AllGrants() {
               </button>
             ))}
           </div>
-          {data && (
-            <span className="text-sm text-gray-500">
-              {data.total} grant{data.total === 1 ? "" : "s"}
-              {hasActiveFilters || tab ? " match" + (data.total === 1 ? "es" : "") : ""}
-            </span>
-          )}
+          <span className="text-sm text-gray-500">
+            {sortedItems.length} grant{sortedItems.length === 1 ? "" : "s"}
+            {hasActiveFilters || tab ? ` match${sortedItems.length === 1 ? "es" : ""}` : ""}
+          </span>
         </div>
 
         {canEdit && (
@@ -176,7 +203,7 @@ export default function AllGrants() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <Field label="Search">
             <input
               type="text"
@@ -184,20 +211,6 @@ export default function AllGrants() {
               value={search}
               onChange={(e) => resetToPageOne(setSearch)(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
-            />
-          </Field>
-          <Field label="District">
-            <FilterSelect value={district} onChange={resetToPageOne(setDistrict)} options={options.districts} allLabel="All Districts" />
-          </Field>
-          <Field label="Grantor">
-            <FilterSelect value={grantor} onChange={resetToPageOne(setGrantor)} options={options.grantors} allLabel="All Grantors" />
-          </Field>
-          <Field label="Funding Source">
-            <FilterSelect
-              value={fundingSource}
-              onChange={resetToPageOne(setFundingSource)}
-              options={options.fundingSources}
-              allLabel="All Funding Sources"
             />
           </Field>
           <Field label="Expiring">
@@ -213,6 +226,11 @@ export default function AllGrants() {
               ))}
             </select>
           </Field>
+          <div className="flex items-end">
+            <p className="text-xs text-gray-400">
+              Tip: click the ▼ icon on a column header (e.g. Grants Manager) to filter by specific values.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -224,12 +242,20 @@ export default function AllGrants() {
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    onClick={() => handleSort(col.key)}
-                    className={`px-4 py-2.5 font-medium cursor-pointer select-none whitespace-nowrap hover:text-gray-700 ${
+                    className={`px-4 py-2.5 font-medium select-none whitespace-nowrap hover:text-gray-700 ${
                       col.sticky ? "sticky left-0 bg-gray-50 z-20" : ""
                     }`}
                   >
-                    {col.label} {sortKey === col.key && (sortDir === "asc" ? "▲" : "▼")}
+                    <span className="cursor-pointer" onClick={() => handleSort(col.key)}>
+                      {col.label} {sortKey === col.key && (sortDir === "asc" ? "▲" : "▼")}
+                    </span>
+                    {FILTERABLE_COLUMNS.has(col.key) && (
+                      <ColumnFilterMenu
+                        options={columnOptions[col.key] || []}
+                        selected={columnFilters[col.key] || []}
+                        onChange={(values) => setColumnFilter(col.key, values)}
+                      />
+                    )}
                   </th>
                 ))}
               </tr>
@@ -242,7 +268,7 @@ export default function AllGrants() {
                   </td>
                 </tr>
               )}
-              {sortedItems.map((g, i) => {
+              {pageItems.map((g, i) => {
                 const rowBg = i % 2 === 1 ? "bg-gray-50" : "bg-white";
                 return (
                 <tr
@@ -293,10 +319,10 @@ export default function AllGrants() {
           </table>
         </div>
 
-        {data && data.total > PAGE_SIZE && (
+        {sortedItems.length > PAGE_ROWS && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
             <span>
-              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, data.total)} of {data.total}
+              Showing {(page - 1) * PAGE_ROWS + 1}–{Math.min(page * PAGE_ROWS, sortedItems.length)} of {sortedItems.length}
             </span>
             <div className="flex gap-2">
               <button
@@ -327,22 +353,5 @@ function Field({ label, children }) {
       <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
       {children}
     </div>
-  );
-}
-
-function FilterSelect({ value, onChange, options, allLabel }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
-    >
-      <option value="">{allLabel}</option>
-      {options.map((opt) => (
-        <option key={opt} value={opt}>
-          {opt}
-        </option>
-      ))}
-    </select>
   );
 }
