@@ -234,15 +234,17 @@ export default function AllGrants() {
                   </td>
                 </tr>
               )}
-              {sortedItems.map((g, i) => (
+              {sortedItems.map((g, i) => {
+                const rowBg = i % 2 === 1 ? "bg-gray-50" : "bg-white";
+                return (
                 <tr
                   key={g.id}
                   onClick={() => navigate(`/grants/${g.id}`)}
-                  className={`border-b border-gray-100 last:border-0 hover:bg-accent-light/20 cursor-pointer ${
-                    i % 2 === 1 ? "bg-gray-50/60" : "bg-white"
-                  }`}
+                  className={`group border-b border-gray-100 last:border-0 hover:bg-gray-100 cursor-pointer ${rowBg}`}
                 >
-                  <td className="px-4 py-2.5 font-medium text-[#1F2937] whitespace-nowrap sticky left-0 bg-inherit">
+                  <td
+                    className={`px-4 py-2.5 font-medium text-[#1F2937] whitespace-nowrap sticky left-0 z-[5] group-hover:bg-gray-100 ${rowBg}`}
+                  >
                     {g.project_name}
                   </td>
                   <td className="px-4 py-2.5">
@@ -277,7 +279,8 @@ export default function AllGrants() {
                     )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
