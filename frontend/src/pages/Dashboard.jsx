@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { formatCurrency, formatDate } from "../lib/format";
+import { useCappedList } from "../lib/useCappedList";
 
 export default function Dashboard() {
   const [window_, setWindow] = useState(30);
@@ -17,6 +18,8 @@ export default function Dashboard() {
     queryKey: ["dashboard-expiring", window_],
     queryFn: async () => (await api.get("/dashboard/expiring", { params: { window: window_ } })).data,
   });
+
+  const { visibleItems, expanded, hasMore, remainingCount, toggle } = useCappedList(expiring, 10);
 
   return (
     <div className="space-y-6">
@@ -54,30 +57,41 @@ export default function Dashboard() {
         )}
 
         {expiring.length > 0 && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                <th className="px-5 py-2 font-medium">Project Name</th>
-                <th className="px-5 py-2 font-medium">Grantor</th>
-                <th className="px-5 py-2 font-medium">Current Exp Date</th>
-                <th className="px-5 py-2 font-medium">District</th>
-              </tr>
-            </thead>
-            <tbody>
-              {expiring.map((g) => (
-                <tr
-                  key={g.id}
-                  onClick={() => navigate(`/grants/${g.id}`)}
-                  className="border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer"
-                >
-                  <td className="px-5 py-2.5 font-medium text-[#1F2937]">{g.project_name}</td>
-                  <td className="px-5 py-2.5 text-gray-600">{g.grantor || "—"}</td>
-                  <td className="px-5 py-2.5 text-gray-600">{formatDate(g.current_exp_date)}</td>
-                  <td className="px-5 py-2.5 text-gray-600">{g.district ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <div className={expanded ? "max-h-96 overflow-y-auto" : ""}>
+              <table className="w-full text-sm">
+                <thead className={expanded ? "sticky top-0 bg-white z-10" : ""}>
+                  <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                    <th className="px-5 py-2 font-medium">Project Name</th>
+                    <th className="px-5 py-2 font-medium">Grantor</th>
+                    <th className="px-5 py-2 font-medium">Current Exp Date</th>
+                    <th className="px-5 py-2 font-medium">District</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleItems.map((g) => (
+                    <tr
+                      key={g.id}
+                      onClick={() => navigate(`/grants/${g.id}`)}
+                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <td className="px-5 py-2.5 font-medium text-[#1F2937]">{g.project_name}</td>
+                      <td className="px-5 py-2.5 text-gray-600">{g.grantor || "—"}</td>
+                      <td className="px-5 py-2.5 text-gray-600">{formatDate(g.current_exp_date)}</td>
+                      <td className="px-5 py-2.5 text-gray-600">{g.district ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {hasMore && (
+              <div className="px-5 py-3 border-t border-gray-100 text-center">
+                <button onClick={toggle} className="text-sm text-accent hover:underline font-medium">
+                  {expanded ? "Show less" : `View all ${remainingCount + visibleItems.length} (${remainingCount} more)`}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -41,7 +41,6 @@ export default function AllGrants() {
     return {
       districts: uniq(items.map((g) => g.district)),
       grantors: uniq(items.map((g) => g.grantor)),
-      grantsManagers: uniq(items.map((g) => g.grants_manager)),
       fundingSources: uniq(items.map((g) => g.funding_source)),
     };
   }, [filterSource]);
@@ -53,7 +52,6 @@ export default function AllGrants() {
     ...(search ? { search } : {}),
     ...(district ? { district } : {}),
     ...(grantor ? { grantor } : {}),
-    ...(grantsManager ? { grants_manager: grantsManager } : {}),
     ...(fundingSource ? { funding_source: fundingSource } : {}),
   };
 
@@ -101,11 +99,15 @@ export default function AllGrants() {
     { key: "project_name", label: "Project Name" },
     { key: "grantor", label: "Grantor" },
     { key: "funding_source", label: "Funding Source" },
+    { key: "grant_officer", label: "Grant Officer" },
     { key: "status", label: "Status" },
     { key: "district", label: "District" },
+    { key: "orig_exp_date", label: "Orig Exp Date" },
     { key: "current_exp_date", label: "Current Exp Date" },
+    { key: "amended_exp_date", label: "Amended Exp Date" },
     { key: "grant_amount", label: "Grant Amount" },
     { key: "grants_manager", label: "Grants Manager" },
+    { key: "program_manager", label: "Program Manager" },
   ];
 
   return (
@@ -146,24 +148,17 @@ export default function AllGrants() {
         <FilterSelect label="District" value={district} onChange={resetToPageOne(setDistrict)} options={options.districts} />
         <FilterSelect label="Grantor" value={grantor} onChange={resetToPageOne(setGrantor)} options={options.grantors} />
         <FilterSelect
-          label="Grants Manager"
-          value={grantsManager}
-          onChange={resetToPageOne(setGrantsManager)}
-          options={options.grantsManagers}
-        />
-        <FilterSelect
           label="Funding Source"
           value={fundingSource}
           onChange={resetToPageOne(setFundingSource)}
           options={options.fundingSources}
         />
-        {(district || grantor || grantsManager || fundingSource || search) && (
+        {(district || grantor || fundingSource || search) && (
           <button
             onClick={() => {
               setSearch("");
               setDistrict("");
               setGrantor("");
-              setGrantsManager("");
               setFundingSource("");
               setPage(1);
             }}
@@ -175,10 +170,10 @@ export default function AllGrants() {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[70vh]">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
+            <thead className="sticky top-0 z-10">
+              <tr className="text-left text-xs text-gray-500 border-b border-gray-200 bg-gray-50">
                 {columns.map((col) => (
                   <th
                     key={col.key}
@@ -207,13 +202,17 @@ export default function AllGrants() {
                   <td className="px-4 py-2.5 font-medium text-[#1F2937] whitespace-nowrap">{g.project_name}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{g.grantor || "—"}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{g.funding_source || "—"}</td>
+                  <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{g.grant_officer || "—"}</td>
                   <td className="px-4 py-2.5">
                     <StatusPill status={g.status} />
                   </td>
                   <td className="px-4 py-2.5 text-gray-600">{g.district ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(g.orig_exp_date)}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(g.current_exp_date)}</td>
+                  <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(g.amended_exp_date)}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatCurrency(g.grant_amount)}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{g.grants_manager || "—"}</td>
+                  <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{g.program_manager || "—"}</td>
                 </tr>
               ))}
             </tbody>
