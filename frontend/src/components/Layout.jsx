@@ -95,6 +95,9 @@ export default function Layout() {
             </NavLink>
           )}
         </nav>
+        <div className="w-56 px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+          Made by Nathan Lee SPWI
+        </div>
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
