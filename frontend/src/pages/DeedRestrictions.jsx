@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import ColumnFilterMenu from "../components/ColumnFilterMenu";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
@@ -29,6 +30,35 @@ export default function DeedRestrictions() {
     queryFn: async () => (await api.get("/deed-restrictions")).data,
   });
   const items = data?.items || [];
+
+  const [columnFilters, setColumnFilters] = useState({}); // { [columnKey]: string[] of selected values }
+  const activeFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
+
+  const columnOptions = useMemo(() => {
+    const uniq = (key) => [...new Set(items.map((d) => d[key]).filter((v) => v !== null && v !== undefined && v !== ""))].sort();
+    return {
+      grantor: uniq("grantor"),
+      funding_source: uniq("funding_source"),
+      status: uniq("status"),
+    };
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((d) =>
+      Object.entries(columnFilters).every(([key, selected]) => {
+        if (!selected || selected.length === 0) return true;
+        return selected.includes(d[key]);
+      })
+    );
+  }, [items, columnFilters]);
+
+  function setColumnFilter(key, values) {
+    setColumnFilters((prev) => ({ ...prev, [key]: values }));
+  }
+
+  function clearFilters() {
+    setColumnFilters({});
+  }
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -120,7 +150,15 @@ export default function DeedRestrictions() {
         </div>
       </div>
 
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-gray-400">Tip: click the ▼ icon on a column header to filter by specific values.</p>
+          {activeFilterCount > 0 && (
+            <button onClick={clearFilters} className="text-xs text-accent hover:underline">
+              Clear filters ({activeFilterCount})
+            </button>
+          )}
+        </div>
         {canEdit && (
           <button
             onClick={openNewForm}
@@ -137,22 +175,43 @@ export default function DeedRestrictions() {
             <thead>
               <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
                 <th className="px-5 py-2.5 font-medium">Project Name</th>
-                <th className="px-5 py-2.5 font-medium">Grantor</th>
-                <th className="px-5 py-2.5 font-medium">Funding Source</th>
-                <th className="px-5 py-2.5 font-medium">Status</th>
+                <th className="px-5 py-2.5 font-medium whitespace-nowrap">
+                  Grantor
+                  <ColumnFilterMenu
+                    options={columnOptions.grantor}
+                    selected={columnFilters.grantor || []}
+                    onChange={(values) => setColumnFilter("grantor", values)}
+                  />
+                </th>
+                <th className="px-5 py-2.5 font-medium whitespace-nowrap">
+                  Funding Source
+                  <ColumnFilterMenu
+                    options={columnOptions.funding_source}
+                    selected={columnFilters.funding_source || []}
+                    onChange={(values) => setColumnFilter("funding_source", values)}
+                  />
+                </th>
+                <th className="px-5 py-2.5 font-medium whitespace-nowrap">
+                  Status
+                  <ColumnFilterMenu
+                    options={columnOptions.status}
+                    selected={columnFilters.status || []}
+                    onChange={(values) => setColumnFilter("status", values)}
+                  />
+                </th>
                 <th className="px-5 py-2.5 font-medium">SharePoint</th>
                 {canEdit && <th className="px-5 py-2.5 font-medium">Actions</th>}
               </tr>
             </thead>
             <tbody>
-              {!isLoading && items.length === 0 && (
+              {!isLoading && filteredItems.length === 0 && (
                 <tr>
                   <td colSpan={canEdit ? 6 : 5} className="px-5 py-10 text-center text-gray-400">
-                    No deed restrictions recorded yet.
+                    {items.length === 0 ? "No deed restrictions recorded yet." : "No deed restrictions match these filters."}
                   </td>
                 </tr>
               )}
-              {items.map((d) => (
+              {filteredItems.map((d) => (
                 <tr key={d.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
                   <td className="px-5 py-2.5 font-medium text-[#1F2937] whitespace-nowrap">{d.project_name}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{d.grantor || "—"}</td>
