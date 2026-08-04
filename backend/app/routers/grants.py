@@ -21,7 +21,6 @@ from app.schemas.grant import (
 )
 from app.services.audit import write_audit_log
 from app.services.grant_status import compute_status
-from app.services.notifications import notify_active_users_except
 from app.services.pdf import build_snapshot_filename, render_grant_pdf
 
 router = APIRouter(prefix="/grants", tags=["grants"])
@@ -258,14 +257,6 @@ def add_note(grant_id: uuid.UUID, payload: GrantNoteCreate, db: Session = Depend
         table_name="grant_notes",
         record_id=note.id,
         detail={"grant_id": str(grant.id), "note_text": payload.note_text},
-    )
-
-    notify_active_users_except(
-        db,
-        exclude_user_id=user.id,
-        grant_id=grant.id,
-        type_="note_added",
-        message=f"{user.name} added an update to {grant.project_name}",
     )
 
     db.commit()

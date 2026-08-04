@@ -14,17 +14,6 @@ def notify_users(db: Session, *, user_ids: list[uuid.UUID], grant_id: uuid.UUID 
         db.add(Notification(user_id=uid, grant_id=grant_id, type=type_, message=message))
 
 
-def notify_active_users_except(db: Session, *, exclude_user_id: uuid.UUID | None, grant_id: uuid.UUID | None, type_: str, message: str) -> None:
-    user_ids = db.scalars(
-        select(User.id).where(
-            User.status == "active",
-            User.role.in_(("admin", "editor")),
-            User.id != exclude_user_id,
-        )
-    ).all()
-    notify_users(db, user_ids=user_ids, grant_id=grant_id, type_=type_, message=message)
-
-
 def check_and_notify_expiring_grants(db: Session) -> None:
     """Run as a cheap check on relevant reads. Creates one 'grant_expiring'
     notification per active user for any grant that has newly entered the
