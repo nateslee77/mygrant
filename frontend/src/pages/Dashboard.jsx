@@ -22,7 +22,12 @@ export default function Dashboard() {
 
   const { data: psrDueSoon = [], isLoading: psrDueSoonLoading } = useQuery({
     queryKey: ["dashboard-psr-due-soon", psrWindow],
-    queryFn: async () => (await api.get("/dashboard/psr-due-soon", { params: { window: psrWindow } })).data,
+    queryFn: async () =>
+      (
+        await api.get("/dashboard/psr-due-soon", {
+          params: psrWindow === "overdue" ? { overdue: true } : { window: psrWindow },
+        })
+      ).data,
   });
 
   const { visibleItems, expanded, hasMore, remainingCount, toggle } = useCappedList(expiring, 10);
@@ -60,12 +65,17 @@ export default function Dashboard() {
               { label: "7 Days", value: 7 },
               { label: "14 Days", value: 14 },
               { label: "1 Month", value: 30 },
+              { label: "Past Due", value: "overdue" },
             ].map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setPsrWindow(opt.value)}
                 className={`px-3 py-1 text-sm rounded font-medium ${
-                  psrWindow === opt.value ? "bg-white shadow-sm text-accent-dark" : "text-gray-500"
+                  psrWindow === opt.value
+                    ? opt.value === "overdue"
+                      ? "bg-white shadow-sm text-status-withdrawn"
+                      : "bg-white shadow-sm text-accent-dark"
+                    : "text-gray-500"
                 }`}
               >
                 {opt.label}
@@ -76,7 +86,7 @@ export default function Dashboard() {
 
         {!psrDueSoonLoading && psrDueSoon.length === 0 && (
           <div className="px-5 py-10 text-center text-sm text-gray-400">
-            No status reports due in this window
+            {psrWindow === "overdue" ? "No past due status reports" : "No status reports due in this window"}
           </div>
         )}
 

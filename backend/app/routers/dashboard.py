@@ -84,23 +84,27 @@ def get_expiring(window: int = 30, db: Session = Depends(get_db), _user: User = 
 
 
 @router.get("/psr-due-soon", response_model=list[PSRDueSoonItem])
-def get_psr_due_soon(window: int = 30, db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
-    if window not in (7, 14, 30):
-        window = 30
-
+def get_psr_due_soon(
+    window: int = 30, overdue: bool = False, db: Session = Depends(get_db), _user: User = Depends(get_current_user)
+):
     today = date.today()
-    window_end = today + timedelta(days=window)
 
-    rows = db.execute(
-        select(PSRDueDate, PSRProject)
-        .join(PSRProject, PSRDueDate.project_id == PSRProject.id)
-        .where(
+    if overdue:
+        query = select(PSRDueDate, PSRProject).join(PSRProject, PSRDueDate.project_id == PSRProject.id).where(
+            PSRDueDate.submitted.is_(False),
+            PSRDueDate.due_date < today,
+        )
+    else:
+        if window not in (7, 14, 30):
+            window = 30
+        window_end = today + timedelta(days=window)
+        query = select(PSRDueDate, PSRProject).join(PSRProject, PSRDueDate.project_id == PSRProject.id).where(
             PSRDueDate.submitted.is_(False),
             PSRDueDate.due_date >= today,
             PSRDueDate.due_date <= window_end,
         )
-        .order_by(PSRDueDate.due_date.asc())
-    ).all()
+
+    rows = db.execute(query.order_by(PSRDueDate.due_date.asc())).all()
 
     return [
         PSRDueSoonItem(

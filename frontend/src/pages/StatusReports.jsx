@@ -708,6 +708,11 @@ function ProjectEditModal({ project, allCategories, canEdit, onClose }) {
     },
   });
 
+  const removeNote = useMutation({
+    mutationFn: async (noteId) => (await api.delete(`/psr-projects/${activeProject.id}/notes/${noteId}`)).data,
+    onSuccess: invalidate,
+  });
+
   if (!activeProject || !form) return null;
 
   const sortedDueDates = [...(activeProject.due_dates || [])].sort((a, b) => (a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0));
@@ -879,9 +884,19 @@ function ProjectEditModal({ project, allCategories, canEdit, onClose }) {
           <div className="space-y-2">
             {(activeProject.notes || []).length === 0 && <p className="text-sm text-gray-400">No notes yet.</p>}
             {(activeProject.notes || []).map((n) => (
-              <div key={n.id} className="border-b border-gray-50 pb-2">
-                <div className="text-xs text-gray-400">{n.author_name} — {new Date(n.created_at).toLocaleDateString()}</div>
-                <div className="text-sm text-[#1F2937]">{n.note_text}</div>
+              <div key={n.id} className="border-b border-gray-50 pb-2 flex items-start justify-between gap-2">
+                <div>
+                  <div className="text-xs text-gray-400">{n.author_name} — {new Date(n.created_at).toLocaleDateString()}</div>
+                  <div className="text-sm text-[#1F2937]">{n.note_text}</div>
+                </div>
+                {canEdit && (
+                  <button
+                    onClick={() => removeNote.mutate(n.id)}
+                    className="shrink-0 text-xs text-status-withdrawn hover:underline"
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
             ))}
           </div>
