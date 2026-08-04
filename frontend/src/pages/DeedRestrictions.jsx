@@ -31,8 +31,10 @@ export default function DeedRestrictions() {
   });
   const items = data?.items || [];
 
+  const [search, setSearch] = useState("");
   const [columnFilters, setColumnFilters] = useState({}); // { [columnKey]: string[] of selected values }
   const activeFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
+  const hasActiveFilters = Boolean(search) || activeFilterCount > 0;
 
   const columnOptions = useMemo(() => {
     const uniq = (key) => [...new Set(items.map((d) => d[key]).filter((v) => v !== null && v !== undefined && v !== ""))].sort();
@@ -43,14 +45,22 @@ export default function DeedRestrictions() {
     };
   }, [items]);
 
-  const filteredItems = useMemo(() => {
+  const searchedItems = useMemo(() => {
+    if (!search.trim()) return items;
+    const q = search.trim().toLowerCase();
     return items.filter((d) =>
+      [d.project_name, d.grantor, d.funding_source, d.notes].some((v) => v && v.toLowerCase().includes(q))
+    );
+  }, [items, search]);
+
+  const filteredItems = useMemo(() => {
+    return searchedItems.filter((d) =>
       Object.entries(columnFilters).every(([key, selected]) => {
         if (!selected || selected.length === 0) return true;
         return selected.includes(d[key]);
       })
     );
-  }, [items, columnFilters]);
+  }, [searchedItems, columnFilters]);
 
   function setColumnFilter(key, values) {
     setColumnFilters((prev) => ({ ...prev, [key]: values }));
@@ -58,6 +68,7 @@ export default function DeedRestrictions() {
 
   function clearFilters() {
     setColumnFilters({});
+    setSearch("");
   }
 
   const [formOpen, setFormOpen] = useState(false);
@@ -150,12 +161,19 @@ export default function DeedRestrictions() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <p className="text-xs text-gray-400">Tip: click the ▼ icon on a column header to filter by specific values.</p>
-          {activeFilterCount > 0 && (
-            <button onClick={clearFilters} className="text-xs text-accent hover:underline">
-              Clear filters ({activeFilterCount})
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search project, grantor, funding source, notes…"
+            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-72 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+          />
+          <span className="text-xs text-gray-500 whitespace-nowrap">{filteredItems.length} of {items.length}</span>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-xs text-accent hover:underline whitespace-nowrap">
+              Clear filters
             </button>
           )}
         </div>
