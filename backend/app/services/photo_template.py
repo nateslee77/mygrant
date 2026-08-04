@@ -7,7 +7,7 @@ from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
-from PIL import Image
+from PIL import Image, ImageOps
 
 LOGO_PATH = Path(__file__).resolve().parents[1] / "assets" / "logo.png"
 
@@ -20,6 +20,23 @@ STATUS_LABELS = {
 # a single landscape page alongside the footer block, for typical photo
 # aspect ratios.
 WIDTH_BY_ROWS = {1: Inches(4.5), 2: Inches(3.6), 3: Inches(2.3)}
+
+
+def _normalize_image(image_bytes: bytes) -> bytes:
+    """Re-encode through Pillow into a plain baseline JPEG. python-docx's own
+    image-format sniffer is much stricter than a real image viewer -- many
+    real-world camera/phone JPEGs (progressive encoding, EXIF-only headers,
+    CMYK, etc.) fail it with UnrecognizedImageError even though they're
+    perfectly valid images. Round-tripping through Pillow also applies EXIF
+    orientation so photos come out right-side-up regardless of how the
+    camera stored rotation."""
+    image = Image.open(io.BytesIO(image_bytes))
+    image = ImageOps.exif_transpose(image)
+    if image.mode not in ("RGB", "L"):
+        image = image.convert("RGB")
+    out = io.BytesIO()
+    image.save(out, format="JPEG", quality=92)
+    return out.getvalue()
 
 
 def _set_cell_borders_none(table) -> None:
@@ -61,7 +78,7 @@ def generate_photo_template(
         img_paragraph = cell.paragraphs[0]
         img_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = img_paragraph.add_run()
-        run.add_picture(io.BytesIO(image_bytes), width=photo_width)
+        run.add_picture(io.BytesIO(_normalize_image(image_bytes)), width=photo_width)
 
         caption_paragraph = cell.add_paragraph()
         caption_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
