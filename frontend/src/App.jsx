@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import GrantDetail from "./pages/GrantDetail";
 import Login from "./pages/Login";
 import NewGrant from "./pages/NewGrant";
+import PhotoTemplate from "./pages/PhotoTemplate";
 import PropertyLookup from "./pages/PropertyLookup";
 import SetPassword from "./pages/SetPassword";
 
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/grants/new" element={<NewGrant />} />
           <Route path="/grants/:id" element={<GrantDetail />} />
           <Route path="/property-lookup" element={<PropertyLookup />} />
+          <Route path="/photo-template" element={<PhotoTemplate />} />
 
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<Admin />} />

@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Dashboard", exact: true },
   { to: "/grants", label: "All Grants" },
   { to: "/property-lookup", label: "Property Lookup" },
+  { to: "/photo-template", label: "Photo Summary" },
 ];
 
 const PAGE_TITLES = {
@@ -14,6 +15,7 @@ const PAGE_TITLES = {
   "/grants": "All Grants",
   "/admin": "Admin",
   "/property-lookup": "Property Lookup",
+  "/photo-template": "Photo Summary Template",
 };
 
 function pageTitleFor(pathname) {
