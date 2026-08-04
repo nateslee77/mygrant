@@ -97,7 +97,9 @@ export default function Admin() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("viewer");
   const [inviteError, setInviteError] = useState("");
-  const [inviteSuccess, setInviteSuccess] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteLinkRole, setInviteLinkRole] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
   const [confirmAdminOpen, setConfirmAdminOpen] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -119,18 +121,25 @@ export default function Admin() {
 
   const invite = useMutation({
     mutationFn: async ({ email, role }) => (await api.post("/admin/users/invite", { email, role })).data,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      setInviteLink(data.invite_link);
+      setInviteLinkRole(data.role);
+      setLinkCopied(false);
       setInviteEmail("");
       setInviteRole("viewer");
-      setInviteSuccess("Invite sent.");
       setInviteError("");
     },
     onError: (err) => {
-      setInviteError(err.response?.data?.detail || "Failed to send invite");
-      setInviteSuccess("");
+      setInviteError(err.response?.data?.detail || "Failed to generate invite link");
+      setInviteLink("");
     },
   });
+
+  function copyInviteLink() {
+    navigator.clipboard.writeText(inviteLink);
+    setLinkCopied(true);
+  }
 
   const changeRole = useMutation({
     mutationFn: async ({ userId, role }) => (await api.patch(`/admin/users/${userId}/role`, { role })).data,
@@ -161,7 +170,7 @@ export default function Admin() {
   function submitInvite(e) {
     e.preventDefault();
     setInviteError("");
-    setInviteSuccess("");
+    setInviteLink("");
     if (inviteRole === "admin") {
       setConfirmAdminOpen(true);
       return;
@@ -172,7 +181,11 @@ export default function Admin() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-500 mb-4">Invite User</h2>
+        <h2 className="text-sm font-semibold text-gray-500 mb-1">Invite User</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Generates a set-password link for the chosen role. Share it yourself (email, Teams, Slack) — the role and
+          permissions are locked in when the link is generated.
+        </p>
         <form onSubmit={submitInvite} className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[220px]">
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -202,11 +215,31 @@ export default function Admin() {
             disabled={invite.isPending}
             className="bg-accent hover:bg-accent-dark text-white text-sm font-medium px-4 py-2 rounded-md disabled:opacity-60"
           >
-            Send Invite
+            Generate Invite Link
           </button>
         </form>
         {inviteError && <div className="text-sm text-status-withdrawn mt-2">{inviteError}</div>}
-        {inviteSuccess && <div className="text-sm text-status-active mt-2">{inviteSuccess}</div>}
+        {inviteLink && (
+          <div className="mt-4 border border-gray-200 rounded-md p-3 bg-gray-50">
+            <div className="text-xs text-gray-500 mb-1.5">
+              Invite link ({inviteLinkRole[0]?.toUpperCase() + inviteLinkRole.slice(1)}) — expires in 72 hours:
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={inviteLink}
+                onFocus={(e) => e.target.select()}
+                className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm font-mono bg-white"
+              />
+              <button
+                onClick={copyInviteLink}
+                className="shrink-0 bg-white border border-gray-300 hover:bg-gray-100 text-sm font-medium px-3 py-1.5 rounded-md"
+              >
+                {linkCopied ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <CollapsibleSection title="Users" headerExtra={<span className="text-xs text-gray-400">{users.length}</span>}>

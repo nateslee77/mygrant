@@ -13,9 +13,8 @@ from app.models.models import AuditLog, Grant, GrantAward, GrantNote, User
 from app.schemas.audit import AuditLogOut, AuditLogResponse
 from app.schemas.grant import GrantCreate
 from app.schemas.grant_award import GrantAwardCreate
-from app.schemas.user import InviteRequest, RoleChangeRequest, UserOut
+from app.schemas.user import InviteRequest, InviteResponse, RoleChangeRequest, UserOut
 from app.services.audit import write_audit_log
-from app.services.email import send_invite_email
 
 RESTORABLE_ACTIONS = {"deleted_grant", "deleted_note", "deleted_award"}
 
@@ -36,7 +35,7 @@ def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_adm
     return db.scalars(select(User).order_by(User.created_at.desc())).all()
 
 
-@router.post("/users/invite", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@router.post("/users/invite", response_model=InviteResponse, status_code=status.HTTP_201_CREATED)
 def invite_user(payload: InviteRequest, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     if payload.role not in VALID_ROLES:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Invalid role")
@@ -76,15 +75,8 @@ def invite_user(payload: InviteRequest, db: Session = Depends(get_db), admin: Us
     db.commit()
     db.refresh(new_user)
 
-    try:
-        send_invite_email(email, new_user.invite_token)
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY,
-            f"User was created but the invite email failed to send: {exc}",
-        ) from exc
-
-    return new_user
+    invite_link = f"{settings.frontend_url}/set-password?token={new_user.invite_token}"
+    return InviteResponse(**UserOut.model_validate(new_user).model_dump(), invite_link=invite_link)
 
 
 @router.patch("/users/{user_id}/role", response_model=UserOut)

@@ -22,5 +22,9 @@ class InviteRequest(BaseModel):
     name: str | None = None
 
 
+class InviteResponse(UserOut):
+    invite_link: str
+
+
 class RoleChangeRequest(BaseModel):
     role: str

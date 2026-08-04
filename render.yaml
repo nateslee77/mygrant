@@ -10,10 +10,6 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
-      - key: RESEND_API_KEY
-        sync: false
-      - key: RESEND_FROM_EMAIL
-        value: onboarding@resend.dev
       - key: ALLOWED_INVITE_DOMAIN
         value: parks.lacounty.gov
       - key: FRONTEND_URL

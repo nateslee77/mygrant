@@ -21,8 +21,6 @@ Copy `.env.example` to `.env` at the repo root and fill in real values:
 ```
 DATABASE_URL=
 JWT_SECRET=
-RESEND_API_KEY=
-RESEND_FROM_EMAIL=
 ALLOWED_INVITE_DOMAIN=parks.lacounty.gov
 FRONTEND_URL=http://localhost:5173
 ```
