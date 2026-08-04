@@ -181,11 +181,7 @@ export default function Admin() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-500 mb-1">Invite User</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Generates a set-password link for the chosen role. Share it yourself (email, Teams, Slack) — the role and
-          permissions are locked in when the link is generated.
-        </p>
+        <h2 className="text-sm font-semibold text-gray-500 mb-4">Invite User</h2>
         <form onSubmit={submitInvite} className="flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[220px]">
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
