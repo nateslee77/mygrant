@@ -220,9 +220,14 @@ export default function StatusReports() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
-    const targetId = searchParams.get("project");
-    if (!targetId || items.length === 0) return;
-    const target = items.find((p) => p.id === targetId);
+    const projectId = searchParams.get("project");
+    const dueDateId = searchParams.get("due_date");
+    if ((!projectId && !dueDateId) || items.length === 0) return;
+
+    const target = projectId
+      ? items.find((p) => p.id === projectId)
+      : items.find((p) => (p.due_dates || []).some((d) => d.id === dueDateId));
+
     if (target) {
       setTab(target.category);
       setEditProject(target);
