@@ -7,7 +7,7 @@ import { useCappedList } from "../lib/useCappedList";
 
 export default function Dashboard() {
   const [window_, setWindow] = useState(30);
-  const [psrWindow, setPsrWindow] = useState(30);
+  const [psrWindow, setPsrWindow] = useState("overdue");
   const navigate = useNavigate();
 
   const { data: stats } = useQuery({
@@ -62,10 +62,10 @@ export default function Dashboard() {
           <h2 className="font-semibold text-[#1F2937]">Status Reports Due Soon</h2>
           <div className="inline-flex rounded-md border border-gray-200 p-0.5 bg-gray-50">
             {[
+              { label: "Past Due", value: "overdue" },
               { label: "7 Days", value: 7 },
               { label: "14 Days", value: 14 },
               { label: "1 Month", value: 30 },
-              { label: "Past Due", value: "overdue" },
             ].map((opt) => (
               <button
                 key={opt.value}
