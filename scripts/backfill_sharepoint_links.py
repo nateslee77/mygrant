@@ -254,6 +254,7 @@ def main():
                 write_audit_log(
                     db,
                     user_id=attributed_user.id if attributed_user else None,
+                    user_name=attributed_user.name if attributed_user else None,
                     action="updated_grant",
                     table_name="grants",
                     record_id=grant.id,

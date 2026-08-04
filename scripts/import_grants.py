@@ -202,7 +202,7 @@ def main():
 
                 notes_value = _get(row, header_map, "notes")
                 if notes_value:
-                    db.add(GrantNote(grant_id=grant.id, user_id=system_user.id, note_text=notes_value))
+                    db.add(GrantNote(grant_id=grant.id, user_id=system_user.id, author_name=system_user.name, note_text=notes_value))
 
                 rows_imported += 1
 

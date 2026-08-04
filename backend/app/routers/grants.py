@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_admin, require_editor
@@ -131,6 +131,7 @@ def create_grant(payload: GrantCreate, db: Session = Depends(get_db), user: User
     write_audit_log(
         db,
         user_id=user.id,
+        user_name=user.name,
         action="created_grant",
         table_name="grants",
         record_id=grant.id,
@@ -155,6 +156,7 @@ def update_grant(grant_id: uuid.UUID, payload: GrantUpdate, db: Session = Depend
     write_audit_log(
         db,
         user_id=user.id,
+        user_name=user.name,
         action="updated_grant",
         table_name="grants",
         record_id=grant.id,
@@ -176,7 +178,8 @@ def delete_grant(grant_id: uuid.UUID, db: Session = Depends(get_db), user: User 
     notes_snapshot = [
         {
             "id": str(n.id),
-            "user_id": str(n.user_id),
+            "user_id": str(n.user_id) if n.user_id else None,
+            "author_name": n.author_name,
             "note_text": n.note_text,
             "created_at": n.created_at.isoformat(),
         }
@@ -186,6 +189,7 @@ def delete_grant(grant_id: uuid.UUID, db: Session = Depends(get_db), user: User 
     write_audit_log(
         db,
         user_id=user.id,
+        user_name=user.name,
         action="deleted_grant",
         table_name="grants",
         record_id=grant.id,
@@ -206,6 +210,7 @@ def update_sharepoint_link(grant_id: uuid.UUID, payload: SharePointLinkUpdate, d
     write_audit_log(
         db,
         user_id=user.id,
+        user_name=user.name,
         action="updated_sharepoint_link",
         table_name="grants",
         record_id=grant.id,
@@ -221,7 +226,6 @@ def list_notes(grant_id: uuid.UUID, db: Session = Depends(get_db), _user: User =
     _get_grant_or_404(db, grant_id)
     notes = db.scalars(
         select(GrantNote)
-        .options(joinedload(GrantNote.user))
         .where(GrantNote.grant_id == grant_id)
         .order_by(GrantNote.created_at.desc())
     ).all()
@@ -230,7 +234,7 @@ def list_notes(grant_id: uuid.UUID, db: Session = Depends(get_db), _user: User =
             id=n.id,
             grant_id=n.grant_id,
             user_id=n.user_id,
-            author_name=n.user.name,
+            author_name=n.author_name,
             note_text=n.note_text,
             created_at=n.created_at,
         )
@@ -242,13 +246,14 @@ def list_notes(grant_id: uuid.UUID, db: Session = Depends(get_db), _user: User =
 def add_note(grant_id: uuid.UUID, payload: GrantNoteCreate, db: Session = Depends(get_db), user: User = Depends(require_editor)):
     grant = _get_grant_or_404(db, grant_id)
 
-    note = GrantNote(grant_id=grant.id, user_id=user.id, note_text=payload.note_text)
+    note = GrantNote(grant_id=grant.id, user_id=user.id, author_name=user.name, note_text=payload.note_text)
     db.add(note)
     db.flush()
 
     write_audit_log(
         db,
         user_id=user.id,
+        user_name=user.name,
         action="added_note",
         table_name="grant_notes",
         record_id=note.id,
@@ -286,13 +291,15 @@ def delete_note(grant_id: uuid.UUID, note_id: uuid.UUID, db: Session = Depends(g
     write_audit_log(
         db,
         user_id=user.id,
+        user_name=user.name,
         action="deleted_note",
         table_name="grant_notes",
         record_id=note.id,
         detail={
             "grant_id": str(grant.id),
             "note_text": note.note_text,
-            "note_user_id": str(note.user_id),
+            "note_user_id": str(note.user_id) if note.user_id else None,
+            "note_author_name": note.author_name,
             "note_created_at": note.created_at.isoformat(),
         },
     )
@@ -307,7 +314,6 @@ def download_pdf(grant_id: uuid.UUID, db: Session = Depends(get_db), user: User 
     grant = _get_grant_or_404(db, grant_id)
     notes = db.scalars(
         select(GrantNote)
-        .options(joinedload(GrantNote.user))
         .where(GrantNote.grant_id == grant_id)
         .order_by(GrantNote.created_at.asc())
     ).all()

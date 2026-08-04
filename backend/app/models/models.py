@@ -74,19 +74,26 @@ class GrantNote(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     grant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("grants.id", ondelete="CASCADE"), nullable=False)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    # Nullable + SET NULL so deleting a user account never destroys their notes;
+    # author_name is a permanent snapshot of who wrote it, independent of
+    # whether the account still exists.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    author_name: Mapped[str] = mapped_column(String, nullable=False)
     note_text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     grant: Mapped["Grant"] = relationship(back_populates="notes")
-    user: Mapped["User"] = relationship()
+    user: Mapped["User | None"] = relationship()
 
 
 class AuditLog(Base):
     __tablename__ = "audit_log"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # Permanent snapshot of the acting user's name, independent of whether the
+    # account still exists -- deleting a user must never erase the change log.
+    user_name: Mapped[str | None] = mapped_column(String, nullable=True)
     action: Mapped[str] = mapped_column(String, nullable=False)
     table_name: Mapped[str] = mapped_column(String, nullable=False)
     record_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)

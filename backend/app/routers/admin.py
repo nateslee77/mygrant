@@ -67,6 +67,7 @@ def invite_user(payload: InviteRequest, db: Session = Depends(get_db), admin: Us
     write_audit_log(
         db,
         user_id=admin.id,
+        user_name=admin.name,
         action="invited_user",
         table_name="users",
         record_id=new_user.id,
@@ -101,6 +102,7 @@ def change_role(user_id: uuid.UUID, payload: RoleChangeRequest, db: Session = De
     write_audit_log(
         db,
         user_id=admin.id,
+        user_name=admin.name,
         action="changed_role",
         table_name="users",
         record_id=target.id,
@@ -123,7 +125,6 @@ def list_audit_log(
 
     entries = db.scalars(
         select(AuditLog)
-        .options(joinedload(AuditLog.user))
         .order_by(AuditLog.created_at.desc())
         .offset(start)
         .limit(page_size)
@@ -148,7 +149,7 @@ def list_audit_log(
     items = [
         AuditLogOut(
             id=e.id,
-            user_name=e.user.name if e.user else "System",
+            user_name=e.user_name or "System",
             action=e.action,
             table_name=e.table_name,
             record_id=e.record_id,
@@ -196,7 +197,8 @@ def restore_audit_log_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), 
                 GrantNote(
                     id=uuid.UUID(note["id"]),
                     grant_id=restored.id,
-                    user_id=uuid.UUID(note["user_id"]),
+                    user_id=uuid.UUID(note["user_id"]) if note.get("user_id") else None,
+                    author_name=note.get("author_name", "Unknown"),
                     note_text=note["note_text"],
                     created_at=datetime.fromisoformat(note["created_at"]),
                 )
@@ -205,6 +207,7 @@ def restore_audit_log_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), 
         write_audit_log(
             db,
             user_id=admin.id,
+            user_name=admin.name,
             action="restored_grant",
             table_name="grants",
             record_id=restored.id,
@@ -234,6 +237,7 @@ def restore_audit_log_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), 
         write_audit_log(
             db,
             user_id=admin.id,
+            user_name=admin.name,
             action="restored_award",
             table_name="grant_awards",
             record_id=restored_award.id,
@@ -256,7 +260,7 @@ def restore_audit_log_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), 
     if db.get(GrantNote, entry.record_id) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "A note with this id already exists — already restored?")
 
-    note_user_id = uuid.UUID(detail["note_user_id"]) if detail.get("note_user_id") else admin.id
+    note_user_id = uuid.UUID(detail["note_user_id"]) if detail.get("note_user_id") else None
     note_created_at = (
         datetime.fromisoformat(detail["note_created_at"]) if detail.get("note_created_at") else datetime.now(timezone.utc)
     )
@@ -265,6 +269,7 @@ def restore_audit_log_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), 
         id=entry.record_id,
         grant_id=grant_id,
         user_id=note_user_id,
+        author_name=detail.get("note_author_name", "Unknown"),
         note_text=detail.get("note_text", ""),
         created_at=note_created_at,
     )
@@ -274,6 +279,7 @@ def restore_audit_log_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), 
     write_audit_log(
         db,
         user_id=admin.id,
+        user_name=admin.name,
         action="restored_note",
         table_name="grant_notes",
         record_id=restored_note.id,
@@ -297,6 +303,7 @@ def deactivate_user(user_id: uuid.UUID, db: Session = Depends(get_db), admin: Us
     write_audit_log(
         db,
         user_id=admin.id,
+        user_name=admin.name,
         action="deactivated_user",
         table_name="users",
         record_id=target.id,
@@ -305,3 +312,30 @@ def deactivate_user(user_id: uuid.UUID, db: Session = Depends(get_db), admin: Us
     db.commit()
     db.refresh(target)
     return target
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(user_id: uuid.UUID, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    target = db.get(User, user_id)
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    if target.id == admin.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "You cannot delete your own account")
+
+    # Notes/change-log entries this user authored are preserved: their author name
+    # is already snapshotted independently, and the FK relationships are
+    # ON DELETE SET NULL rather than restricting, so deleting the account here
+    # never destroys or corrupts that history.
+    write_audit_log(
+        db,
+        user_id=admin.id,
+        user_name=admin.name,
+        action="deleted_user_account",
+        table_name="users",
+        record_id=target.id,
+        detail={"email": target.email, "name": target.name, "role": target.role},
+    )
+
+    db.delete(target)
+    db.commit()

@@ -9,6 +9,7 @@ def write_audit_log(
     db: Session,
     *,
     user_id: uuid.UUID | None,
+    user_name: str | None = None,
     action: str,
     table_name: str,
     record_id: uuid.UUID | None,
@@ -16,6 +17,7 @@ def write_audit_log(
 ) -> None:
     entry = AuditLog(
         user_id=user_id,
+        user_name=user_name,
         action=action,
         table_name=table_name,
         record_id=record_id,

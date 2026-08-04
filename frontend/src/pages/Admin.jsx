@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import CollapsibleSection from "../components/CollapsibleSection";
 import Modal from "../components/Modal";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { useCappedList } from "../lib/useCappedList";
 
@@ -21,6 +22,7 @@ const ACTION_LABELS = {
   invited_user: "Invited user",
   changed_role: "Changed user role",
   deactivated_user: "Deactivated user",
+  deleted_user_account: "Deleted user account",
 };
 
 const RESTORABLE_ACTIONS = new Set(["deleted_grant", "deleted_note", "deleted_award"]);
@@ -71,6 +73,7 @@ const USER_STATUS_STYLES = {
 const ROLE_OPTIONS = ["viewer", "editor", "admin"];
 
 export default function Admin() {
+  const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: users = [] } = useQuery({
@@ -97,6 +100,8 @@ export default function Admin() {
   const [inviteSuccess, setInviteSuccess] = useState("");
   const [confirmAdminOpen, setConfirmAdminOpen] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
   const [restoreError, setRestoreError] = useState("");
 
   const restoreEntry = useMutation({
@@ -137,6 +142,19 @@ export default function Admin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
       setDeactivateTarget(null);
+    },
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (userId) => api.delete(`/admin/users/${userId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-audit-log"] });
+      setDeleteTarget(null);
+      setDeleteError("");
+    },
+    onError: (err) => {
+      setDeleteError(err.response?.data?.detail || "Failed to delete user");
     },
   });
 
@@ -229,14 +247,29 @@ export default function Admin() {
                     {u.status}
                   </span>
                 </td>
-                <td className="px-6 py-3">
-                  {u.status !== "deactivated" && (
-                    <button
-                      onClick={() => setDeactivateTarget(u)}
-                      className="text-sm text-status-withdrawn hover:underline"
-                    >
-                      Deactivate
-                    </button>
+                <td className="px-6 py-3 whitespace-nowrap">
+                  {u.id === currentUser?.id ? (
+                    <span className="text-xs text-gray-400">(you)</span>
+                  ) : (
+                    <>
+                      {u.status !== "deactivated" && (
+                        <button
+                          onClick={() => setDeactivateTarget(u)}
+                          className="text-sm text-status-withdrawn hover:underline mr-3"
+                        >
+                          Deactivate
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setDeleteError("");
+                          setDeleteTarget(u);
+                        }}
+                        className="text-sm text-status-withdrawn hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </>
                   )}
                 </td>
               </tr>

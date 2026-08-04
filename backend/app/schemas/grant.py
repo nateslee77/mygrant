@@ -105,7 +105,7 @@ class GrantNoteCreate(BaseModel):
 class GrantNoteOut(BaseModel):
     id: uuid.UUID
     grant_id: uuid.UUID
-    user_id: uuid.UUID
+    user_id: uuid.UUID | None
     author_name: str
     note_text: str
     created_at: datetime

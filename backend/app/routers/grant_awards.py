@@ -42,6 +42,7 @@ def create_grant_award(payload: GrantAwardCreate, db: Session = Depends(get_db),
     write_audit_log(
         db,
         user_id=user.id,
+        user_name=user.name,
         action="created_award",
         table_name="grant_awards",
         record_id=award.id,
@@ -70,6 +71,7 @@ def update_grant_award(award_id: uuid.UUID, payload: GrantAwardUpdate, db: Sessi
     write_audit_log(
         db,
         user_id=user.id,
+        user_name=user.name,
         action="updated_award",
         table_name="grant_awards",
         record_id=award.id,
@@ -94,6 +96,7 @@ def delete_grant_award(award_id: uuid.UUID, db: Session = Depends(get_db), user:
     write_audit_log(
         db,
         user_id=user.id,
+        user_name=user.name,
         action="deleted_award",
         table_name="grant_awards",
         record_id=award.id,

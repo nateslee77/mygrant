@@ -110,7 +110,7 @@ export default function GrantDetail() {
             <h1 className="text-2xl font-semibold text-[#1F2937]">{grant.project_name}</h1>
             <StatusPill status={grant.status} />
             {grant.district !== null && (
-              <span className="text-xs font-medium text-gray-500 bg-gray-100 rounded-full px-2.5 py-1">
+              <span className="text-xs font-medium text-gray-500 bg-gray-100 rounded-full px-2.5 py-1 whitespace-nowrap">
                 District {grant.district}
               </span>
             )}

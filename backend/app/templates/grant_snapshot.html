@@ -64,7 +64,7 @@
   {% if notes %}
     {% for note in notes %}
       <div class="note">
-        <div class="note-meta">{{ note.user.name }} — {{ note.created_at.strftime("%m/%d/%Y %I:%M %p") }}</div>
+        <div class="note-meta">{{ note.author_name }} — {{ note.created_at.strftime("%m/%d/%Y %I:%M %p") }}</div>
         <div>{{ note.note_text }}</div>
       </div>
     {% endfor %}
