@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -9,15 +9,16 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import require_admin
 from app.core.security import generate_invite_token
-from app.models.models import AuditLog, DeedRestriction, Grant, GrantAward, GrantNote, User
+from app.models.models import AuditLog, DeedRestriction, Grant, GrantAward, GrantNote, PSRDueDate, PSRNote, PSRProject, User
 from app.schemas.audit import AuditLogOut, AuditLogResponse
 from app.schemas.deed_restriction import DeedRestrictionCreate
 from app.schemas.grant import GrantCreate
 from app.schemas.grant_award import GrantAwardCreate
+from app.schemas.psr import PSRProjectCreate
 from app.schemas.user import InviteRequest, InviteResponse, RoleChangeRequest, UserOut
 from app.services.audit import write_audit_log
 
-RESTORABLE_ACTIONS = {"deleted_grant", "deleted_note", "deleted_award", "deleted_deed_restriction"}
+RESTORABLE_ACTIONS = {"deleted_grant", "deleted_note", "deleted_award", "deleted_deed_restriction", "deleted_psr_project"}
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -266,6 +267,53 @@ def restore_audit_log_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), 
         )
         db.commit()
         return {"restored": True, "table": "deed_restrictions", "id": str(restored_dr.id)}
+
+    if entry.action == "deleted_psr_project":
+        snapshot = detail.get("snapshot")
+        if not snapshot:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "No snapshot was captured for this deletion")
+        if entry.record_id is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing original status report project id")
+        if db.get(PSRProject, entry.record_id) is not None:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "A status report project with this id already exists — already restored?"
+            )
+
+        parsed = PSRProjectCreate(**snapshot)
+        restored_project = PSRProject(id=entry.record_id, **parsed.model_dump())
+        db.add(restored_project)
+        db.flush()
+
+        for d in detail.get("due_dates_snapshot", []):
+            db.add(
+                PSRDueDate(
+                    project_id=restored_project.id,
+                    due_date=date.fromisoformat(d["due_date"]),
+                    submitted=d["submitted"],
+                    submitted_date=date.fromisoformat(d["submitted_date"]) if d.get("submitted_date") else None,
+                )
+            )
+        for n in detail.get("notes_snapshot", []):
+            db.add(
+                PSRNote(
+                    project_id=restored_project.id,
+                    user_id=None,
+                    author_name=n["author_name"],
+                    note_text=n["note_text"],
+                )
+            )
+
+        write_audit_log(
+            db,
+            user_id=admin.id,
+            user_name=admin.name,
+            action="restored_psr_project",
+            table_name="psr_projects",
+            record_id=restored_project.id,
+            detail={"project_name": restored_project.project_name, "restored_from": str(entry.id)},
+        )
+        db.commit()
+        return {"restored": True, "table": "psr_projects", "id": str(restored_project.id)}
 
     # deleted_note
     grant_id_str = detail.get("grant_id")

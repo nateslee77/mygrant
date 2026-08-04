@@ -9,3 +9,4 @@ class DashboardStats(BaseModel):
     total_active_funding: Decimal
     total_awards_count: int
     total_awards_amount: Decimal
+    psr_due_soon_count: int

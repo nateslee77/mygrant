@@ -32,6 +32,7 @@ export default function NotificationBell() {
     }
     setOpen(false);
     if (n.grant_id) navigate(`/grants/${n.grant_id}`);
+    else if (n.psr_due_date_id) navigate("/status-reports");
   }
 
   async function handleMarkAllRead() {

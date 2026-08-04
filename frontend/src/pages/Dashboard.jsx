@@ -23,7 +23,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard label="Active Grants" value={stats?.active_count ?? "—"} />
         <StatCard label="Closed Grants" value={stats?.closed_count ?? "—"} />
         <StatCard label="Total Active Funding" value={formatCurrency(stats?.total_active_funding)} />
@@ -31,6 +31,11 @@ export default function Dashboard() {
           label="Total Grants Awarded"
           value={formatCurrency(stats?.total_awards_amount)}
           subValue={stats ? `${stats.total_awards_count} award${stats.total_awards_count === 1 ? "" : "s"}` : null}
+        />
+        <StatCard
+          label="PSRs Due Soon"
+          value={stats?.psr_due_soon_count ?? "—"}
+          subValue="Within 30 days"
         />
       </div>
 

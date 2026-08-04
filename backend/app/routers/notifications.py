@@ -8,7 +8,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.models import Notification, User
 from app.schemas.notification import NotificationOut
-from app.services.notifications import check_and_notify_expiring_grants
+from app.services.notifications import check_and_notify_expiring_grants, check_and_notify_psr_due_dates
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 @router.get("", response_model=list[NotificationOut])
 def list_notifications(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     check_and_notify_expiring_grants(db)
+    check_and_notify_psr_due_dates(db)
     db.commit()
 
     notifications = db.scalars(

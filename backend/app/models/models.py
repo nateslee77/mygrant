@@ -133,12 +133,70 @@ class DeedRestriction(Base):
     )
 
 
+class PSRProject(Base):
+    __tablename__ = "psr_projects"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String, nullable=False)
+    grantor: Mapped[str | None] = mapped_column(String, nullable=True)
+    funding_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    ad_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    district: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    grant_manager: Mapped[str | None] = mapped_column(String, nullable=True)
+    performance_end_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    link: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    due_dates: Mapped[list["PSRDueDate"]] = relationship(
+        "PSRDueDate", back_populates="project", cascade="all, delete-orphan", order_by="PSRDueDate.due_date"
+    )
+    notes: Mapped[list["PSRNote"]] = relationship(
+        "PSRNote", back_populates="project", cascade="all, delete-orphan", order_by="PSRNote.created_at.desc()"
+    )
+
+
+class PSRDueDate(Base):
+    __tablename__ = "psr_due_dates"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("psr_projects.id", ondelete="CASCADE"), nullable=False)
+    due_date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    submitted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    submitted_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    project: Mapped["PSRProject"] = relationship("PSRProject", back_populates="due_dates")
+
+
+class PSRNote(Base):
+    __tablename__ = "psr_notes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("psr_projects.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    author_name: Mapped[str] = mapped_column(String, nullable=False)
+    note_text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    project: Mapped["PSRProject"] = relationship("PSRProject", back_populates="notes")
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     grant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("grants.id", ondelete="CASCADE"), nullable=True)
+    psr_due_date_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("psr_due_dates.id", ondelete="CASCADE"), nullable=True
+    )
     type: Mapped[str] = mapped_column(String, nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     read: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

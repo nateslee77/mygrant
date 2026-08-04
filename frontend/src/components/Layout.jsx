@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { AdminIcon, AwardIcon, CameraIcon, DashboardIcon, DeedIcon, GrantsIcon, LinksIcon, MapPinIcon } from "./NavIcons";
+import {
+  AdminIcon,
+  AwardIcon,
+  CameraIcon,
+  DashboardIcon,
+  DeedIcon,
+  GrantsIcon,
+  LinksIcon,
+  MapPinIcon,
+  StatusReportIcon,
+} from "./NavIcons";
 import NotificationBell from "./NotificationBell";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", exact: true, Icon: DashboardIcon },
   { to: "/grants", label: "All Grants", Icon: GrantsIcon },
+  { to: "/status-reports", label: "Status Reports", Icon: StatusReportIcon },
   { to: "/grants-awarded", label: "Grants Awarded", Icon: AwardIcon },
   { to: "/deed-restrictions", label: "Deed Restrictions", Icon: DeedIcon },
   { to: "/property-lookup", label: "Property Lookup", Icon: MapPinIcon },
@@ -17,6 +28,7 @@ const NAV_ITEMS = [
 const PAGE_TITLES = {
   "/": "Dashboard",
   "/grants": "All Grants",
+  "/status-reports": "Status Reports",
   "/grants-awarded": "Grants Awarded",
   "/deed-restrictions": "Deed Restrictions",
   "/admin": "Admin",

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class NotificationOut(BaseModel):
     id: uuid.UUID
     grant_id: uuid.UUID | None
+    psr_due_date_id: uuid.UUID | None
     type: str
     message: str
     read: bool

@@ -13,6 +13,7 @@ import NewGrant from "./pages/NewGrant";
 import PhotoTemplate from "./pages/PhotoTemplate";
 import PropertyLookup from "./pages/PropertyLookup";
 import SetPassword from "./pages/SetPassword";
+import StatusReports from "./pages/StatusReports";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/grants" element={<AllGrants />} />
           <Route path="/grants/new" element={<NewGrant />} />
           <Route path="/grants/:id" element={<GrantDetail />} />
+          <Route path="/status-reports" element={<StatusReports />} />
           <Route path="/grants-awarded" element={<GrantsAwarded />} />
           <Route path="/deed-restrictions" element={<DeedRestrictions />} />
           <Route path="/property-lookup" element={<PropertyLookup />} />

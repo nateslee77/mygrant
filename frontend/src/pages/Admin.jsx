@@ -23,13 +23,28 @@ const ACTION_LABELS = {
   updated_deed_restriction: "Updated deed restriction",
   deleted_deed_restriction: "Deleted deed restriction",
   restored_deed_restriction: "Restored deed restriction",
+  created_psr_project: "Created status report project",
+  updated_psr_project: "Updated status report project",
+  deleted_psr_project: "Deleted status report project",
+  restored_psr_project: "Restored status report project",
+  added_psr_due_date: "Added PSR due date",
+  updated_psr_due_date: "Updated PSR due date",
+  deleted_psr_due_date: "Deleted PSR due date",
+  added_psr_note: "Added status report note",
+  deleted_psr_note: "Deleted status report note",
   invited_user: "Invited user",
   changed_role: "Changed user role",
   deactivated_user: "Deactivated user",
   deleted_user_account: "Deleted user account",
 };
 
-const RESTORABLE_ACTIONS = new Set(["deleted_grant", "deleted_note", "deleted_award", "deleted_deed_restriction"]);
+const RESTORABLE_ACTIONS = new Set([
+  "deleted_grant",
+  "deleted_note",
+  "deleted_award",
+  "deleted_deed_restriction",
+  "deleted_psr_project",
+]);
 
 function fieldLabel(key) {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -45,7 +60,7 @@ function describeEntry(entry) {
     null;
 
   if (
-    (entry.action === "updated_grant" || entry.action === "updated_award" || entry.action === "updated_deed_restriction") &&
+    ["updated_grant", "updated_award", "updated_deed_restriction", "updated_psr_project"].includes(entry.action) &&
     entry.detail?.after
   ) {
     const before = entry.detail.before || {};
