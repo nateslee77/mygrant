@@ -121,17 +121,17 @@ def generate_photo_template(
     footer_table.alignment = WD_TABLE_ALIGNMENT.CENTER
     footer_table.autofit = False
     _set_cell_borders_none(footer_table)
-    footer_table.columns[0].width = Inches(1.0)
-    footer_table.columns[1].width = Inches(8.5)
-    footer_table.cell(0, 0).width = Inches(1.0)
-    footer_table.cell(0, 1).width = Inches(8.5)
+    footer_table.columns[0].width = Inches(1.4)
+    footer_table.columns[1].width = Inches(8.1)
+    footer_table.cell(0, 0).width = Inches(1.4)
+    footer_table.cell(0, 1).width = Inches(8.1)
 
     logo_cell = footer_table.cell(0, 0)
     logo_paragraph = logo_cell.paragraphs[0]
     logo_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     if LOGO_PATH.exists():
         logo_run = logo_paragraph.add_run()
-        logo_run.add_picture(str(LOGO_PATH), width=Inches(0.7))
+        logo_run.add_picture(str(LOGO_PATH), width=Inches(1.1))
 
     text_cell = footer_table.cell(0, 1)
     subtitle_paragraph = text_cell.paragraphs[0]

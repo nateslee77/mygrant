@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { AdminIcon, AwardIcon, CameraIcon, DashboardIcon, GrantsIcon, MapPinIcon } from "./NavIcons";
 import NotificationBell from "./NotificationBell";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", exact: true },
-  { to: "/grants", label: "All Grants" },
-  { to: "/property-lookup", label: "Property Lookup" },
-  { to: "/photo-template", label: "Photo Summary" },
+  { to: "/", label: "Dashboard", exact: true, Icon: DashboardIcon },
+  { to: "/grants", label: "All Grants", Icon: GrantsIcon },
+  { to: "/grants-awarded", label: "Grants Awarded", Icon: AwardIcon },
+  { to: "/property-lookup", label: "Property Lookup", Icon: MapPinIcon },
+  { to: "/photo-template", label: "Photo Summary", Icon: CameraIcon },
 ];
 
 const PAGE_TITLES = {
   "/": "Dashboard",
   "/grants": "All Grants",
+  "/grants-awarded": "Grants Awarded",
   "/admin": "Admin",
   "/property-lookup": "Property Lookup",
   "/photo-template": "Photo Summary Template",
@@ -53,11 +56,12 @@ export default function Layout() {
               to={item.to}
               end={item.exact}
               className={({ isActive }) =>
-                `block px-3 py-2 rounded-md text-sm font-medium ${
+                `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium ${
                   isActive ? "bg-accent-light text-accent-dark" : "text-gray-600 hover:bg-gray-50"
                 }`
               }
             >
+              <item.Icon />
               {item.label}
             </NavLink>
           ))}
@@ -65,11 +69,12 @@ export default function Layout() {
             <NavLink
               to="/admin"
               className={({ isActive }) =>
-                `block px-3 py-2 rounded-md text-sm font-medium ${
+                `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium ${
                   isActive ? "bg-accent-light text-accent-dark" : "text-gray-600 hover:bg-gray-50"
                 }`
               }
             >
+              <AdminIcon />
               Admin
             </NavLink>
           )}

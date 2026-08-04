@@ -5,6 +5,7 @@ import Admin from "./pages/Admin";
 import AllGrants from "./pages/AllGrants";
 import Dashboard from "./pages/Dashboard";
 import GrantDetail from "./pages/GrantDetail";
+import GrantsAwarded from "./pages/GrantsAwarded";
 import Login from "./pages/Login";
 import NewGrant from "./pages/NewGrant";
 import PhotoTemplate from "./pages/PhotoTemplate";
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/grants" element={<AllGrants />} />
           <Route path="/grants/new" element={<NewGrant />} />
           <Route path="/grants/:id" element={<GrantDetail />} />
+          <Route path="/grants-awarded" element={<GrantsAwarded />} />
           <Route path="/property-lookup" element={<PropertyLookup />} />
           <Route path="/photo-template" element={<PhotoTemplate />} />
 

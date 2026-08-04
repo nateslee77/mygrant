@@ -23,10 +23,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Active Grants" value={stats?.active_count ?? "—"} />
         <StatCard label="Closed Grants" value={stats?.closed_count ?? "—"} />
         <StatCard label="Total Active Funding" value={formatCurrency(stats?.total_active_funding)} />
+        <StatCard
+          label="Total Grants Awarded"
+          value={formatCurrency(stats?.total_awards_amount)}
+          subValue={stats ? `${stats.total_awards_count} award${stats.total_awards_count === 1 ? "" : "s"}` : null}
+        />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200">
@@ -98,11 +103,12 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ label, value }) {
+function StatCard({ label, value, subValue }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
       <div className="text-sm text-gray-500">{label}</div>
       <div className="text-2xl font-semibold text-[#1F2937] mt-1">{value}</div>
+      {subValue && <div className="text-xs text-gray-400 mt-0.5">{subValue}</div>}
     </div>
   );
 }

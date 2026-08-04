@@ -9,14 +9,15 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import require_admin
 from app.core.security import generate_invite_token
-from app.models.models import AuditLog, Grant, GrantNote, User
+from app.models.models import AuditLog, Grant, GrantAward, GrantNote, User
 from app.schemas.audit import AuditLogOut, AuditLogResponse
 from app.schemas.grant import GrantCreate
+from app.schemas.grant_award import GrantAwardCreate
 from app.schemas.user import InviteRequest, RoleChangeRequest, UserOut
 from app.services.audit import write_audit_log
 from app.services.email import send_invite_email
 
-RESTORABLE_ACTIONS = {"deleted_grant", "deleted_note"}
+RESTORABLE_ACTIONS = {"deleted_grant", "deleted_note", "deleted_award"}
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -215,6 +216,31 @@ def restore_audit_log_entry(entry_id: uuid.UUID, db: Session = Depends(get_db), 
         )
         db.commit()
         return {"restored": True, "table": "grants", "id": str(restored.id)}
+
+    if entry.action == "deleted_award":
+        snapshot = detail.get("snapshot")
+        if not snapshot:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "No snapshot was captured for this deletion")
+        if entry.record_id is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Missing original award id")
+        if db.get(GrantAward, entry.record_id) is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "An award with this id already exists — already restored?")
+
+        parsed = GrantAwardCreate(**snapshot)
+        restored_award = GrantAward(id=entry.record_id, **parsed.model_dump())
+        db.add(restored_award)
+        db.flush()
+
+        write_audit_log(
+            db,
+            user_id=admin.id,
+            action="restored_award",
+            table_name="grant_awards",
+            record_id=restored_award.id,
+            detail={"project_name": restored_award.project_name, "restored_from": str(entry.id)},
+        )
+        db.commit()
+        return {"restored": True, "table": "grant_awards", "id": str(restored_award.id)}
 
     # deleted_note
     grant_id_str = detail.get("grant_id")

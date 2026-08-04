@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models.models import Grant, User
+from app.models.models import Grant, GrantAward, User
 from app.schemas.dashboard import DashboardStats
 from app.schemas.grant import ExpiringGrantItem
 from app.services.grant_status import compute_status
@@ -36,10 +36,16 @@ def get_stats(db: Session = Depends(get_db), _user: User = Depends(get_current_u
         elif s == "Closed":
             closed_count += 1
 
+    awards = db.scalars(select(GrantAward)).all()
+    total_awards_count = len(awards)
+    total_awards_amount = sum((a.amount for a in awards if a.amount is not None), Decimal("0"))
+
     return DashboardStats(
         active_count=active_count,
         closed_count=closed_count,
         total_active_funding=total_active_funding,
+        total_awards_count=total_awards_count,
+        total_awards_amount=total_awards_amount,
     )
 
 

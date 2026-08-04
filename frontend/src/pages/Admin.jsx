@@ -14,12 +14,16 @@ const ACTION_LABELS = {
   deleted_note: "Deleted update note",
   restored_grant: "Restored grant",
   restored_note: "Restored update note",
+  created_award: "Created grant award",
+  updated_award: "Updated grant award",
+  deleted_award: "Deleted grant award",
+  restored_award: "Restored grant award",
   invited_user: "Invited user",
   changed_role: "Changed user role",
   deactivated_user: "Deactivated user",
 };
 
-const RESTORABLE_ACTIONS = new Set(["deleted_grant", "deleted_note"]);
+const RESTORABLE_ACTIONS = new Set(["deleted_grant", "deleted_note", "deleted_award"]);
 
 function fieldLabel(key) {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -27,13 +31,20 @@ function fieldLabel(key) {
 
 function describeEntry(entry) {
   const label = ACTION_LABELS[entry.action] || entry.action;
-  const subject = entry.grant_project_name || entry.detail?.project_name || entry.detail?.email || null;
+  const subject =
+    entry.grant_project_name ||
+    entry.detail?.project_name ||
+    entry.detail?.after?.project_name ||
+    entry.detail?.email ||
+    null;
 
-  if (entry.action === "updated_grant" && entry.detail?.after) {
+  if ((entry.action === "updated_grant" || entry.action === "updated_award") && entry.detail?.after) {
     const before = entry.detail.before || {};
     const after = entry.detail.after;
     const fmt = (v) => (v === null || v === undefined || v === "" ? "(blank)" : String(v));
-    const parts = Object.keys(after).map((key) => `${fieldLabel(key)}: ${fmt(before[key])} → ${fmt(after[key])}`);
+    const parts = Object.keys(after)
+      .filter((key) => key !== "project_name")
+      .map((key) => `${fieldLabel(key)}: ${fmt(before[key])} → ${fmt(after[key])}`);
     return { label, subject, extra: parts.join("; ") || null };
   }
   if (entry.action === "changed_role" && entry.detail) {

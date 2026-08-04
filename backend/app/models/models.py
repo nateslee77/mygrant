@@ -96,6 +96,20 @@ class AuditLog(Base):
     user: Mapped["User | None"] = relationship()
 
 
+class GrantAward(Base):
+    __tablename__ = "grant_awards"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    grantor: Mapped[str | None] = mapped_column(String, nullable=True)
+    award_date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 
