@@ -7,6 +7,7 @@ import { useCappedList } from "../lib/useCappedList";
 
 export default function Dashboard() {
   const [window_, setWindow] = useState(30);
+  const [psrWindow, setPsrWindow] = useState(30);
   const navigate = useNavigate();
 
   const { data: stats } = useQuery({
@@ -19,7 +20,19 @@ export default function Dashboard() {
     queryFn: async () => (await api.get("/dashboard/expiring", { params: { window: window_ } })).data,
   });
 
+  const { data: psrDueSoon = [], isLoading: psrDueSoonLoading } = useQuery({
+    queryKey: ["dashboard-psr-due-soon", psrWindow],
+    queryFn: async () => (await api.get("/dashboard/psr-due-soon", { params: { window: psrWindow } })).data,
+  });
+
   const { visibleItems, expanded, hasMore, remainingCount, toggle } = useCappedList(expiring, 10);
+  const {
+    visibleItems: visiblePsrItems,
+    expanded: psrExpanded,
+    hasMore: psrHasMore,
+    remainingCount: psrRemainingCount,
+    toggle: togglePsr,
+  } = useCappedList(psrDueSoon, 10);
 
   return (
     <div className="space-y-6">
@@ -37,6 +50,73 @@ export default function Dashboard() {
           value={stats?.psr_due_soon_count ?? "—"}
           subValue="Within 30 days"
         />
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-[#1F2937]">Status Reports Due Soon</h2>
+          <div className="inline-flex rounded-md border border-gray-200 p-0.5 bg-gray-50">
+            {[
+              { label: "7 Days", value: 7 },
+              { label: "14 Days", value: 14 },
+              { label: "1 Month", value: 30 },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setPsrWindow(opt.value)}
+                className={`px-3 py-1 text-sm rounded font-medium ${
+                  psrWindow === opt.value ? "bg-white shadow-sm text-accent-dark" : "text-gray-500"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!psrDueSoonLoading && psrDueSoon.length === 0 && (
+          <div className="px-5 py-10 text-center text-sm text-gray-400">
+            No status reports due in this window
+          </div>
+        )}
+
+        {psrDueSoon.length > 0 && (
+          <>
+            <div className={psrExpanded ? "max-h-96 overflow-y-auto" : ""}>
+              <table className="w-full text-sm">
+                <thead className={psrExpanded ? "sticky top-0 bg-white z-10" : ""}>
+                  <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                    <th className="px-5 py-2 font-medium">Project Name</th>
+                    <th className="px-5 py-2 font-medium">Grantor</th>
+                    <th className="px-5 py-2 font-medium">Category</th>
+                    <th className="px-5 py-2 font-medium">PSR Due Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visiblePsrItems.map((p) => (
+                    <tr
+                      key={p.due_date_id}
+                      onClick={() => navigate("/status-reports")}
+                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <td className="px-5 py-2.5 font-medium text-[#1F2937]">{p.project_name}</td>
+                      <td className="px-5 py-2.5 text-gray-600">{p.grantor || "—"}</td>
+                      <td className="px-5 py-2.5 text-gray-600">{p.category}</td>
+                      <td className="px-5 py-2.5 text-gray-600">{formatDate(p.due_date)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {psrHasMore && (
+              <div className="px-5 py-3 border-t border-gray-100 text-center">
+                <button onClick={togglePsr} className="text-sm text-accent hover:underline font-medium">
+                  {psrExpanded ? "Show less" : `View all ${psrRemainingCount + visiblePsrItems.length} (${psrRemainingCount} more)`}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200">

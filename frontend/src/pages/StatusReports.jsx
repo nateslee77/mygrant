@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/format";
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   "RPOSD",
   "State of California NRA",
   "Conservancy (RMC,BHUWC)",
@@ -16,7 +16,7 @@ const CATEGORIES = [
 
 const EMPTY_FORM = {
   project_name: "",
-  category: CATEGORIES[0],
+  category: DEFAULT_CATEGORIES[0],
   grantor: "",
   funding_source: "",
   ad_number: "",
@@ -32,6 +32,14 @@ function nextDueDate(project) {
   return unsubmitted.reduce((soonest, d) => (d.due_date < soonest.due_date ? d : soonest));
 }
 
+function OverdueIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="inline-block mr-1 -mt-0.5">
+      <path d="M12 2 1 21h22L12 2zm0 6a1.2 1.2 0 0 1 1.2 1.2v5.2a1.2 1.2 0 0 1-2.4 0V9.2A1.2 1.2 0 0 1 12 8zm0 9.6a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6z" />
+    </svg>
+  );
+}
+
 function DueBadge({ project }) {
   const due = nextDueDate(project);
   if (!due) {
@@ -45,9 +53,21 @@ function DueBadge({ project }) {
   else style = "bg-status-active/10 text-status-active";
   return (
     <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${style}`}>
+      {daysUntil < 0 && <OverdueIcon />}
       {formatDate(due.due_date)}
-      {daysUntil < 0 ? ` (${Math.abs(daysUntil)}d overdue)` : daysUntil <= 30 ? ` (${daysUntil}d)` : ""}
+      {daysUntil < 0 ? ` — passed (${Math.abs(daysUntil)}d)` : daysUntil <= 30 ? ` (${daysUntil}d)` : ""}
     </span>
+  );
+}
+
+function SortableHeader({ label, sortKey, currentSortKey, sortDir, onSort, extra }) {
+  return (
+    <th className="px-5 py-2.5 font-medium whitespace-nowrap">
+      <span className="cursor-pointer select-none" onClick={() => onSort(sortKey)}>
+        {label} {currentSortKey === sortKey && (sortDir === "asc" ? "▲" : "▼")}
+      </span>
+      {extra}
+    </th>
   );
 }
 
@@ -63,9 +83,16 @@ export default function StatusReports() {
   });
   const items = data?.items || [];
 
-  const [tab, setTab] = useState(CATEGORIES[0]);
+  const allCategories = useMemo(() => {
+    const extra = [...new Set(items.map((p) => p.category))].filter((c) => !DEFAULT_CATEGORIES.includes(c)).sort();
+    return [...DEFAULT_CATEGORIES, ...extra];
+  }, [items]);
+
+  const [tab, setTab] = useState(DEFAULT_CATEGORIES[0]);
   const [columnFilters, setColumnFilters] = useState({});
   const activeFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
+  const [sortKey, setSortKey] = useState("project_name");
+  const [sortDir, setSortDir] = useState("asc");
 
   const tabItems = useMemo(() => items.filter((p) => p.category === tab), [items, tab]);
 
@@ -73,6 +100,7 @@ export default function StatusReports() {
     const uniq = (key) =>
       [...new Set(tabItems.map((p) => p[key]).filter((v) => v !== null && v !== undefined && v !== ""))].sort();
     return {
+      grantor: uniq("grantor"),
       grant_manager: uniq("grant_manager"),
       district: uniq("district").map(String),
     };
@@ -88,6 +116,39 @@ export default function StatusReports() {
     );
   }, [tabItems, columnFilters]);
 
+  const sortedItems = useMemo(() => {
+    const copy = [...filteredItems];
+    copy.sort((a, b) => {
+      let av, bv;
+      if (sortKey === "next_due") {
+        av = nextDueDate(a)?.due_date ?? null;
+        bv = nextDueDate(b)?.due_date ?? null;
+      } else if (sortKey === "performance_end_date") {
+        av = a.performance_end_date;
+        bv = b.performance_end_date;
+      } else {
+        av = (a.project_name || "").toLowerCase();
+        bv = (b.project_name || "").toLowerCase();
+      }
+      // nulls always sort last, regardless of direction
+      if (av === null || av === undefined) return bv === null || bv === undefined ? 0 : 1;
+      if (bv === null || bv === undefined) return -1;
+      if (av < bv) return sortDir === "asc" ? -1 : 1;
+      if (av > bv) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return copy;
+  }, [filteredItems, sortKey, sortDir]);
+
+  function handleSort(key) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
   function setColumnFilter(key, values) {
     setColumnFilters((prev) => ({ ...prev, [key]: values }));
   }
@@ -98,17 +159,15 @@ export default function StatusReports() {
   }
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [detailProject, setDetailProject] = useState(null);
+  const [editProject, setEditProject] = useState(null);
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
-  const saveProject = useMutation({
-    mutationFn: async (payload) => {
-      if (editingId) return (await api.patch(`/psr-projects/${editingId}`, payload)).data;
-      return (await api.post("/psr-projects", payload)).data;
-    },
+  const createProject = useMutation({
+    mutationFn: async (payload) => (await api.post("/psr-projects", payload)).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["psr-projects"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -126,33 +185,14 @@ export default function StatusReports() {
     },
   });
 
-  function openNewForm() {
-    setEditingId(null);
-    setForm({ ...EMPTY_FORM, category: tab });
-    setError("");
-    setFormOpen(true);
-  }
-
-  function openEditForm(project) {
-    setEditingId(project.id);
-    setForm({
-      project_name: project.project_name || "",
-      category: project.category || CATEGORIES[0],
-      grantor: project.grantor || "",
-      funding_source: project.funding_source || "",
-      ad_number: project.ad_number || "",
-      district: project.district ?? "",
-      grant_manager: project.grant_manager || "",
-      performance_end_date: project.performance_end_date || "",
-      link: project.link || "",
-    });
+  function openNewForm(category) {
+    setForm({ ...EMPTY_FORM, category: category || tab });
     setError("");
     setFormOpen(true);
   }
 
   function closeForm() {
     setFormOpen(false);
-    setEditingId(null);
     setForm(EMPTY_FORM);
     setError("");
   }
@@ -164,9 +204,9 @@ export default function StatusReports() {
       setError("Project name is required");
       return;
     }
-    saveProject.mutate({
+    createProject.mutate({
       project_name: form.project_name.trim(),
-      category: form.category,
+      category: form.category.trim() || DEFAULT_CATEGORIES[0],
       grantor: form.grantor.trim() || null,
       funding_source: form.funding_source.trim() || null,
       ad_number: form.ad_number.trim() || null,
@@ -177,16 +217,25 @@ export default function StatusReports() {
     });
   }
 
+  function handleAddCategory(e) {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    setAddCategoryOpen(false);
+    const cat = newCategoryName.trim();
+    setNewCategoryName("");
+    openNewForm(cat);
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-1 border-b border-gray-200">
-        {CATEGORIES.map((cat) => {
+      <div className="flex items-center gap-1 border-b border-gray-200 overflow-x-auto">
+        {allCategories.map((cat) => {
           const count = items.filter((p) => p.category === cat).length;
           return (
             <button
               key={cat}
               onClick={() => switchTab(cat)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px ${
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap ${
                 tab === cat ? "border-accent text-accent-dark" : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
             >
@@ -194,12 +243,21 @@ export default function StatusReports() {
             </button>
           );
         })}
+        {canEdit && (
+          <button
+            onClick={() => setAddCategoryOpen(true)}
+            className="px-3 py-2.5 text-sm font-medium text-gray-400 hover:text-accent whitespace-nowrap"
+            title="Add a grantor category"
+          >
+            + Add Grantor
+          </button>
+        )}
       </div>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-500">{filteredItems.length} of {tabItems.length} projects</span>
-          <p className="text-xs text-gray-400">Tip: click the ▼ icon on a column header to filter.</p>
+          <p className="text-xs text-gray-400">Tip: click the ▼ icon on a column header to filter, or click a header to sort.</p>
           {activeFilterCount > 0 && (
             <button onClick={() => setColumnFilters({})} className="text-xs text-accent hover:underline">
               Clear filters ({activeFilterCount})
@@ -208,7 +266,7 @@ export default function StatusReports() {
         </div>
         {canEdit && (
           <button
-            onClick={openNewForm}
+            onClick={() => openNewForm(tab)}
             className="bg-accent hover:bg-accent-dark text-white text-sm font-medium px-4 py-2 rounded-md"
           >
             + New Project
@@ -221,7 +279,15 @@ export default function StatusReports() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
-                <th className="px-5 py-2.5 font-medium">Project Name</th>
+                <SortableHeader label="Project Name" sortKey="project_name" currentSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <th className="px-5 py-2.5 font-medium whitespace-nowrap">
+                  Grantor
+                  <ColumnFilterMenu
+                    options={columnOptions.grantor}
+                    selected={columnFilters.grantor || []}
+                    onChange={(values) => setColumnFilter("grantor", values)}
+                  />
+                </th>
                 <th className="px-5 py-2.5 font-medium whitespace-nowrap">
                   Grant Manager
                   <ColumnFilterMenu
@@ -238,30 +304,41 @@ export default function StatusReports() {
                     onChange={(values) => setColumnFilter("district", values)}
                   />
                 </th>
-                <th className="px-5 py-2.5 font-medium">Performance End Date</th>
-                <th className="px-5 py-2.5 font-medium">Next PSR Due</th>
+                <SortableHeader
+                  label="Performance End Date"
+                  sortKey="performance_end_date"
+                  currentSortKey={sortKey}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                />
+                <SortableHeader label="Next PSR Due" sortKey="next_due" currentSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <th className="px-5 py-2.5 font-medium">Link</th>
                 <th className="px-5 py-2.5 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {!isLoading && filteredItems.length === 0 && (
+              {!isLoading && sortedItems.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-gray-400">
+                  <td colSpan={8} className="px-5 py-10 text-center text-gray-400">
                     {tabItems.length === 0 ? "No projects in this category yet." : "No projects match these filters."}
                   </td>
                 </tr>
               )}
-              {filteredItems.map((p) => (
-                <tr key={p.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
+              {sortedItems.map((p) => (
+                <tr
+                  key={p.id}
+                  onClick={() => setEditProject(p)}
+                  className="border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer"
+                >
                   <td className="px-5 py-2.5 font-medium text-[#1F2937] whitespace-nowrap">{p.project_name}</td>
+                  <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.grantor || "—"}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.grant_manager || "—"}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.district ?? "—"}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(p.performance_end_date)}</td>
                   <td className="px-5 py-2.5 whitespace-nowrap">
                     <DueBadge project={p} />
                   </td>
-                  <td className="px-5 py-2.5 whitespace-nowrap">
+                  <td className="px-5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     {p.link ? (
                       <a href={p.link} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline text-sm">
                         Open ↗
@@ -270,15 +347,10 @@ export default function StatusReports() {
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
-                  <td className="px-5 py-2.5 whitespace-nowrap">
-                    <button onClick={() => setDetailProject(p)} className="text-accent hover:underline text-sm mr-3">
-                      Details
+                  <td className="px-5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => setEditProject(p)} className="text-accent hover:underline text-sm mr-3">
+                      Edit
                     </button>
-                    {canEdit && (
-                      <button onClick={() => openEditForm(p)} className="text-accent hover:underline text-sm mr-3">
-                        Edit
-                      </button>
-                    )}
                     {isAdmin && (
                       <button onClick={() => setDeleteTarget(p)} className="text-status-withdrawn hover:underline text-sm">
                         Delete
@@ -292,7 +364,31 @@ export default function StatusReports() {
         </div>
       </div>
 
-      <Modal open={formOpen} title={editingId ? "Edit Project" : "New Project"} onClose={closeForm}>
+      <Modal open={addCategoryOpen} title="Add Grantor Category" onClose={() => setAddCategoryOpen(false)}>
+        <form onSubmit={handleAddCategory} className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Grantor / Category Name</label>
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="e.g. LA84 Foundation"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+            />
+            <p className="text-xs text-gray-400 mt-1">A new tab appears once you save the first project under it.</p>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={() => setAddCategoryOpen(false)} className="text-sm font-medium text-gray-600 hover:text-gray-800 px-3 py-1.5">
+              Cancel
+            </button>
+            <button type="submit" className="bg-accent hover:bg-accent-dark text-white text-sm font-medium px-4 py-1.5 rounded-md">
+              Continue
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={formOpen} title="New Project" onClose={closeForm}>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -307,15 +403,18 @@ export default function StatusReports() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-            <select
+            <input
+              type="text"
+              list="psr-categories"
               value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
+            />
+            <datalist id="psr-categories">
+              {allCategories.map((c) => (
+                <option key={c} value={c} />
               ))}
-            </select>
+            </datalist>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -394,10 +493,10 @@ export default function StatusReports() {
             </button>
             <button
               type="submit"
-              disabled={saveProject.isPending}
+              disabled={createProject.isPending}
               className="bg-accent hover:bg-accent-dark text-white text-sm font-medium px-4 py-1.5 rounded-md disabled:opacity-60"
             >
-              {editingId ? "Save Changes" : "Add Project"}
+              Add Project
             </button>
           </div>
         </form>
@@ -421,27 +520,69 @@ export default function StatusReports() {
         </div>
       </Modal>
 
-      <ProjectDetailModal
-        project={detailProject ? items.find((p) => p.id === detailProject.id) || detailProject : null}
+      <ProjectEditModal
+        project={editProject ? items.find((p) => p.id === editProject.id) || editProject : null}
+        allCategories={allCategories}
         canEdit={canEdit}
-        onClose={() => setDetailProject(null)}
+        onClose={() => setEditProject(null)}
       />
     </div>
   );
 }
 
-function ProjectDetailModal({ project, canEdit, onClose }) {
+function ProjectEditModal({ project, allCategories, canEdit, onClose }) {
   const queryClient = useQueryClient();
+  const [form, setForm] = useState(null);
+  const [fieldsError, setFieldsError] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
   const [noteText, setNoteText] = useState("");
+
+  const activeProject = project;
+
+  if (activeProject && (!form || form._id !== activeProject.id)) {
+    setForm({
+      _id: activeProject.id,
+      project_name: activeProject.project_name || "",
+      category: activeProject.category || "",
+      grantor: activeProject.grantor || "",
+      funding_source: activeProject.funding_source || "",
+      ad_number: activeProject.ad_number || "",
+      district: activeProject.district ?? "",
+      grant_manager: activeProject.grant_manager || "",
+      performance_end_date: activeProject.performance_end_date || "",
+      link: activeProject.link || "",
+    });
+  }
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["psr-projects"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
   };
 
+  const saveFields = useMutation({
+    mutationFn: async () =>
+      (
+        await api.patch(`/psr-projects/${activeProject.id}`, {
+          project_name: form.project_name.trim(),
+          category: form.category.trim() || activeProject.category,
+          grantor: form.grantor.trim() || null,
+          funding_source: form.funding_source.trim() || null,
+          ad_number: form.ad_number.trim() || null,
+          district: form.district === "" ? null : parseInt(form.district, 10),
+          grant_manager: form.grant_manager.trim() || null,
+          performance_end_date: form.performance_end_date || null,
+          link: form.link.trim() || null,
+        })
+      ).data,
+    onSuccess: () => {
+      setFieldsError("");
+      invalidate();
+    },
+    onError: (err) => setFieldsError(err.response?.data?.detail || "Failed to save"),
+  });
+
   const addDueDate = useMutation({
-    mutationFn: async () => (await api.post(`/psr-projects/${project.id}/due-dates`, { due_date: newDueDate })).data,
+    mutationFn: async () => (await api.post(`/psr-projects/${activeProject.id}/due-dates`, { due_date: newDueDate })).data,
     onSuccess: () => {
       setNewDueDate("");
       invalidate();
@@ -451,7 +592,7 @@ function ProjectDetailModal({ project, canEdit, onClose }) {
   const toggleSubmitted = useMutation({
     mutationFn: async (due) =>
       (
-        await api.patch(`/psr-projects/${project.id}/due-dates/${due.id}`, {
+        await api.patch(`/psr-projects/${activeProject.id}/due-dates/${due.id}`, {
           submitted: !due.submitted,
           submitted_date: !due.submitted ? new Date().toISOString().slice(0, 10) : null,
         })
@@ -460,69 +601,174 @@ function ProjectDetailModal({ project, canEdit, onClose }) {
   });
 
   const removeDueDate = useMutation({
-    mutationFn: async (dueId) => (await api.delete(`/psr-projects/${project.id}/due-dates/${dueId}`)).data,
+    mutationFn: async (dueId) => (await api.delete(`/psr-projects/${activeProject.id}/due-dates/${dueId}`)).data,
     onSuccess: invalidate,
   });
 
   const addNote = useMutation({
-    mutationFn: async () => (await api.post(`/psr-projects/${project.id}/notes`, { note_text: noteText })).data,
+    mutationFn: async () => (await api.post(`/psr-projects/${activeProject.id}/notes`, { note_text: noteText })).data,
     onSuccess: () => {
       setNoteText("");
       invalidate();
     },
   });
 
-  if (!project) return null;
+  if (!activeProject || !form) return null;
+
+  const sortedDueDates = [...(activeProject.due_dates || [])].sort((a, b) => (a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0));
 
   return (
-    <Modal open={!!project} title={project.project_name} onClose={onClose}>
+    <Modal open={!!activeProject} title={activeProject.project_name} onClose={onClose}>
       <div className="space-y-5 max-h-[70vh] overflow-y-auto">
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div><span className="text-gray-500">Category:</span> {project.category}</div>
-          <div><span className="text-gray-500">Grantor:</span> {project.grantor || "—"}</div>
-          <div><span className="text-gray-500">Funding Source:</span> {project.funding_source || "—"}</div>
-          <div><span className="text-gray-500">AD Number:</span> {project.ad_number || "—"}</div>
-          <div><span className="text-gray-500">District:</span> {project.district ?? "—"}</div>
-          <div><span className="text-gray-500">Grant Manager:</span> {project.grant_manager || "—"}</div>
-          <div><span className="text-gray-500">Performance End Date:</span> {formatDate(project.performance_end_date)}</div>
-          <div>
-            <span className="text-gray-500">Link:</span>{" "}
-            {project.link ? (
-              <a href={project.link} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-                Open ↗
-              </a>
-            ) : (
-              "—"
-            )}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">Project Details</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Project Name</label>
+              <input
+                type="text"
+                disabled={!canEdit}
+                value={form.project_name}
+                onChange={(e) => setForm((f) => ({ ...f, project_name: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
+              <input
+                type="text"
+                list="psr-categories-edit"
+                disabled={!canEdit}
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+              />
+              <datalist id="psr-categories-edit">
+                {allCategories.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Grantor</label>
+              <input
+                type="text"
+                disabled={!canEdit}
+                value={form.grantor}
+                onChange={(e) => setForm((f) => ({ ...f, grantor: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Funding Source</label>
+              <input
+                type="text"
+                disabled={!canEdit}
+                value={form.funding_source}
+                onChange={(e) => setForm((f) => ({ ...f, funding_source: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">AD Number</label>
+              <input
+                type="text"
+                disabled={!canEdit}
+                value={form.ad_number}
+                onChange={(e) => setForm((f) => ({ ...f, ad_number: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">District</label>
+              <input
+                type="number"
+                disabled={!canEdit}
+                value={form.district}
+                onChange={(e) => setForm((f) => ({ ...f, district: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Grant Manager</label>
+              <input
+                type="text"
+                disabled={!canEdit}
+                value={form.grant_manager}
+                onChange={(e) => setForm((f) => ({ ...f, grant_manager: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Performance End Date</label>
+              <input
+                type="date"
+                disabled={!canEdit}
+                value={form.performance_end_date}
+                onChange={(e) => setForm((f) => ({ ...f, performance_end_date: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Link</label>
+              <input
+                type="text"
+                disabled={!canEdit}
+                value={form.link}
+                onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))}
+                placeholder="https://…"
+                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+              />
+            </div>
           </div>
+          {fieldsError && <div className="text-sm text-status-withdrawn mt-2">{fieldsError}</div>}
+          {canEdit && (
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={() => saveFields.mutate()}
+                disabled={saveFields.isPending}
+                className="bg-accent hover:bg-accent-dark text-white text-sm font-medium px-4 py-1.5 rounded-md disabled:opacity-60"
+              >
+                Save Changes
+              </button>
+            </div>
+          )}
         </div>
 
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-2">PSR Due Dates</h3>
           <div className="space-y-1.5">
-            {(project.due_dates || []).length === 0 && <p className="text-sm text-gray-400">No due dates yet.</p>}
-            {(project.due_dates || []).map((d) => (
-              <div key={d.id} className="flex items-center justify-between border border-gray-100 rounded-md px-3 py-1.5">
-                <div className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={d.submitted}
-                    disabled={!canEdit}
-                    onChange={() => toggleSubmitted.mutate(d)}
-                    className="rounded border-gray-300 text-accent focus:ring-accent"
-                  />
-                  <span className={d.submitted ? "line-through text-gray-400" : "text-[#1F2937]"}>{formatDate(d.due_date)}</span>
-                  {d.submitted && d.submitted_date && (
-                    <span className="text-xs text-gray-400">(submitted {formatDate(d.submitted_date)})</span>
+            {sortedDueDates.length === 0 && <p className="text-sm text-gray-400">No due dates yet.</p>}
+            {sortedDueDates.map((d) => {
+              const daysUntil = Math.ceil((new Date(d.due_date) - new Date(new Date().toDateString())) / 86400000);
+              const overdue = !d.submitted && daysUntil < 0;
+              return (
+                <div key={d.id} className="flex items-center justify-between border border-gray-100 rounded-md px-3 py-1.5">
+                  <div className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={d.submitted}
+                      disabled={!canEdit}
+                      onChange={() => toggleSubmitted.mutate(d)}
+                      className="rounded border-gray-300 text-accent focus:ring-accent"
+                    />
+                    <span className={d.submitted ? "line-through text-gray-400" : overdue ? "text-status-withdrawn font-medium" : "text-[#1F2937]"}>
+                      {overdue && <OverdueIcon />}
+                      {formatDate(d.due_date)}
+                      {overdue ? " — passed" : ""}
+                    </span>
+                    {d.submitted && d.submitted_date && (
+                      <span className="text-xs text-gray-400">(submitted {formatDate(d.submitted_date)})</span>
+                    )}
+                  </div>
+                  {canEdit && (
+                    <button onClick={() => removeDueDate.mutate(d.id)} className="text-xs text-status-withdrawn hover:underline">
+                      Remove
+                    </button>
                   )}
                 </div>
-                {canEdit && (
-                  <button onClick={() => removeDueDate.mutate(d.id)} className="text-xs text-status-withdrawn hover:underline">
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
           {canEdit && (
             <div className="flex gap-2 mt-2">
@@ -546,8 +792,8 @@ function ProjectDetailModal({ project, canEdit, onClose }) {
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-2">Update Notes</h3>
           <div className="space-y-2">
-            {(project.notes || []).length === 0 && <p className="text-sm text-gray-400">No notes yet.</p>}
-            {(project.notes || []).map((n) => (
+            {(activeProject.notes || []).length === 0 && <p className="text-sm text-gray-400">No notes yet.</p>}
+            {(activeProject.notes || []).map((n) => (
               <div key={n.id} className="border-b border-gray-50 pb-2">
                 <div className="text-xs text-gray-400">{n.author_name} — {new Date(n.created_at).toLocaleDateString()}</div>
                 <div className="text-sm text-[#1F2937]">{n.note_text}</div>

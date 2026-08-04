@@ -1,10 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Modal from "./Modal";
 import { api } from "../lib/api";
+
+const DROPDOWN_LIMIT = 8;
 
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
+  const [seeAllOpen, setSeeAllOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -31,6 +35,7 @@ export default function NotificationBell() {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     }
     setOpen(false);
+    setSeeAllOpen(false);
     if (n.grant_id) navigate(`/grants/${n.grant_id}`);
     else if (n.psr_due_date_id) navigate("/status-reports");
   }
@@ -38,6 +43,21 @@ export default function NotificationBell() {
   async function handleMarkAllRead() {
     await api.post("/notifications/mark-all-read");
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  }
+
+  function NotificationRow({ n }) {
+    return (
+      <button
+        key={n.id}
+        onClick={() => handleNotificationClick(n)}
+        className={`w-full text-left px-4 py-3 text-sm border-b border-gray-50 hover:bg-gray-50 ${
+          !n.read ? "bg-accent-light/30" : ""
+        }`}
+      >
+        <div className="text-gray-800">{n.message}</div>
+        <div className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</div>
+      </button>
+    );
   }
 
   return (
@@ -70,23 +90,41 @@ export default function NotificationBell() {
             {notifications.length === 0 && (
               <div className="px-4 py-6 text-sm text-gray-500 text-center">No notifications</div>
             )}
-            {notifications.map((n) => (
-              <button
-                key={n.id}
-                onClick={() => handleNotificationClick(n)}
-                className={`w-full text-left px-4 py-3 text-sm border-b border-gray-50 hover:bg-gray-50 ${
-                  !n.read ? "bg-accent-light/30" : ""
-                }`}
-              >
-                <div className="text-gray-800">{n.message}</div>
-                <div className="text-xs text-gray-400 mt-1">
-                  {new Date(n.created_at).toLocaleString()}
-                </div>
-              </button>
+            {notifications.slice(0, DROPDOWN_LIMIT).map((n) => (
+              <NotificationRow key={n.id} n={n} />
             ))}
           </div>
+          {notifications.length > 0 && (
+            <div className="px-4 py-2 border-t border-gray-100 text-center">
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  setSeeAllOpen(true);
+                }}
+                className="text-sm text-accent hover:underline font-medium"
+              >
+                See all ({notifications.length})
+              </button>
+            </div>
+          )}
         </div>
       )}
+
+      <Modal open={seeAllOpen} title="All Notifications" onClose={() => setSeeAllOpen(false)}>
+        <div className="flex items-center justify-end mb-2">
+          <button onClick={handleMarkAllRead} className="text-xs text-accent hover:underline">
+            Mark all as read
+          </button>
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto border border-gray-100 rounded-md">
+          {notifications.length === 0 && (
+            <div className="px-4 py-6 text-sm text-gray-500 text-center">No notifications</div>
+          )}
+          {notifications.map((n) => (
+            <NotificationRow key={n.id} n={n} />
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 }

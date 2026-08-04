@@ -7,9 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models.models import Grant, GrantAward, PSRDueDate, User
+from app.models.models import Grant, GrantAward, PSRDueDate, PSRProject, User
 from app.schemas.dashboard import DashboardStats
 from app.schemas.grant import ExpiringGrantItem
+from app.schemas.psr import PSRDueSoonItem
 from app.services.grant_status import compute_status
 from app.services.notifications import check_and_notify_expiring_grants, check_and_notify_psr_due_dates
 
@@ -80,3 +81,35 @@ def get_expiring(window: int = 30, db: Session = Depends(get_db), _user: User = 
     ).all()
 
     return [ExpiringGrantItem.model_validate(g, from_attributes=True) for g in grants]
+
+
+@router.get("/psr-due-soon", response_model=list[PSRDueSoonItem])
+def get_psr_due_soon(window: int = 30, db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
+    if window not in (7, 14, 30):
+        window = 30
+
+    today = date.today()
+    window_end = today + timedelta(days=window)
+
+    rows = db.execute(
+        select(PSRDueDate, PSRProject)
+        .join(PSRProject, PSRDueDate.project_id == PSRProject.id)
+        .where(
+            PSRDueDate.submitted.is_(False),
+            PSRDueDate.due_date >= today,
+            PSRDueDate.due_date <= window_end,
+        )
+        .order_by(PSRDueDate.due_date.asc())
+    ).all()
+
+    return [
+        PSRDueSoonItem(
+            due_date_id=due.id,
+            project_id=project.id,
+            project_name=project.project_name,
+            category=project.category,
+            grantor=project.grantor,
+            due_date=due.due_date,
+        )
+        for due, project in rows
+    ]

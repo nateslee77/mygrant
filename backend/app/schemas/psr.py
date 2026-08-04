@@ -93,3 +93,12 @@ class PSRProjectListResponse(BaseModel):
     items: list[PSRProjectOut]
     total_count: int
     due_soon_count: int
+
+
+class PSRDueSoonItem(BaseModel):
+    due_date_id: uuid.UUID
+    project_id: uuid.UUID
+    project_name: str
+    category: str
+    grantor: str | None
+    due_date: date
