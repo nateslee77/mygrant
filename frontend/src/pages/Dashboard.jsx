@@ -98,7 +98,6 @@ export default function Dashboard() {
                   <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                     <th className="px-5 py-2 font-medium">Project Name</th>
                     <th className="px-5 py-2 font-medium">Grantor</th>
-                    <th className="px-5 py-2 font-medium">Category</th>
                     <th className="px-5 py-2 font-medium">PSR Due Date</th>
                   </tr>
                 </thead>
@@ -111,7 +110,6 @@ export default function Dashboard() {
                     >
                       <td className="px-5 py-2.5 font-medium text-[#1F2937]">{p.project_name}</td>
                       <td className="px-5 py-2.5 text-gray-600">{p.grantor || "—"}</td>
-                      <td className="px-5 py-2.5 text-gray-600">{p.category}</td>
                       <td className="px-5 py-2.5 text-gray-600">{formatDate(p.due_date)}</td>
                     </tr>
                   ))}
