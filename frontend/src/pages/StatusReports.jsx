@@ -102,7 +102,6 @@ export default function StatusReports() {
     return {
       grantor: uniq("grantor"),
       grant_manager: uniq("grant_manager"),
-      district: uniq("district").map(String),
     };
   }, [tabItems]);
 
@@ -110,8 +109,7 @@ export default function StatusReports() {
     return tabItems.filter((p) =>
       Object.entries(columnFilters).every(([key, selected]) => {
         if (!selected || selected.length === 0) return true;
-        const value = key === "district" ? String(p[key] ?? "") : p[key];
-        return selected.includes(value);
+        return selected.includes(p[key]);
       })
     );
   }, [tabItems, columnFilters]);
@@ -160,6 +158,8 @@ export default function StatusReports() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [pendingDueDates, setPendingDueDates] = useState([]);
+  const [newPendingDueDate, setNewPendingDueDate] = useState("");
   const [error, setError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editProject, setEditProject] = useState(null);
@@ -167,7 +167,13 @@ export default function StatusReports() {
   const [newCategoryName, setNewCategoryName] = useState("");
 
   const createProject = useMutation({
-    mutationFn: async (payload) => (await api.post("/psr-projects", payload)).data,
+    mutationFn: async (payload) => {
+      const project = (await api.post("/psr-projects", payload)).data;
+      for (const dueDate of pendingDueDates) {
+        await api.post(`/psr-projects/${project.id}/due-dates`, { due_date: dueDate });
+      }
+      return project;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["psr-projects"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -175,6 +181,16 @@ export default function StatusReports() {
     },
     onError: (err) => setError(err.response?.data?.detail || "Failed to save"),
   });
+
+  function addPendingDueDate() {
+    if (!newPendingDueDate || pendingDueDates.includes(newPendingDueDate)) return;
+    setPendingDueDates((d) => [...d, newPendingDueDate].sort());
+    setNewPendingDueDate("");
+  }
+
+  function removePendingDueDate(date) {
+    setPendingDueDates((d) => d.filter((x) => x !== date));
+  }
 
   const deleteProject = useMutation({
     mutationFn: async (id) => api.delete(`/psr-projects/${id}`),
@@ -187,6 +203,8 @@ export default function StatusReports() {
 
   function openNewForm(category) {
     setForm({ ...EMPTY_FORM, category: category || tab });
+    setPendingDueDates([]);
+    setNewPendingDueDate("");
     setError("");
     setFormOpen(true);
   }
@@ -194,6 +212,8 @@ export default function StatusReports() {
   function closeForm() {
     setFormOpen(false);
     setForm(EMPTY_FORM);
+    setPendingDueDates([]);
+    setNewPendingDueDate("");
     setError("");
   }
 
@@ -296,14 +316,6 @@ export default function StatusReports() {
                     onChange={(values) => setColumnFilter("grant_manager", values)}
                   />
                 </th>
-                <th className="px-5 py-2.5 font-medium whitespace-nowrap">
-                  District
-                  <ColumnFilterMenu
-                    options={columnOptions.district}
-                    selected={columnFilters.district || []}
-                    onChange={(values) => setColumnFilter("district", values)}
-                  />
-                </th>
                 <SortableHeader
                   label="Performance End Date"
                   sortKey="performance_end_date"
@@ -319,7 +331,7 @@ export default function StatusReports() {
             <tbody>
               {!isLoading && sortedItems.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-10 text-center text-gray-400">
+                  <td colSpan={7} className="px-5 py-10 text-center text-gray-400">
                     {tabItems.length === 0 ? "No projects in this category yet." : "No projects match these filters."}
                   </td>
                 </tr>
@@ -333,7 +345,6 @@ export default function StatusReports() {
                   <td className="px-5 py-2.5 font-medium text-[#1F2937] whitespace-nowrap">{p.project_name}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.grantor || "—"}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.grant_manager || "—"}</td>
-                  <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.district ?? "—"}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(p.performance_end_date)}</td>
                   <td className="px-5 py-2.5 whitespace-nowrap">
                     <DueBadge project={p} />
@@ -483,6 +494,38 @@ export default function StatusReports() {
               placeholder="https://…"
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">PSR Due Dates</label>
+            {pendingDueDates.length > 0 && (
+              <div className="space-y-1 mb-2">
+                {pendingDueDates.map((d) => (
+                  <div key={d} className="flex items-center justify-between border border-gray-100 rounded-md px-3 py-1.5">
+                    <span className="text-sm text-[#1F2937]">{formatDate(d)}</span>
+                    <button type="button" onClick={() => removePendingDueDate(d)} className="text-xs text-status-withdrawn hover:underline">
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={newPendingDueDate}
+                onChange={(e) => setNewPendingDueDate(e.target.value)}
+                className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+              />
+              <button
+                type="button"
+                onClick={addPendingDueDate}
+                disabled={!newPendingDueDate}
+                className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-3 py-2 rounded-md disabled:opacity-50"
+              >
+                Add Date
+              </button>
+            </div>
           </div>
 
           {error && <div className="text-sm text-status-withdrawn">{error}</div>}
