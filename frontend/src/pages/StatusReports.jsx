@@ -143,9 +143,11 @@ export default function StatusReports() {
   const searchedItems = useMemo(() => {
     if (!search.trim()) return tabItems;
     const q = search.trim().toLowerCase();
-    return tabItems.filter((p) =>
-      [p.project_name, p.grantor, p.grant_manager, p.funding_source, p.ad_number].some((v) => v && v.toLowerCase().includes(q))
-    );
+    return tabItems.filter((p) => {
+      const fields = [p.project_name, p.grantor, p.grant_manager, p.funding_source, p.ad_number];
+      if (fields.some((v) => v && v.toLowerCase().includes(q))) return true;
+      return (p.notes || []).some((n) => n.note_text && n.note_text.toLowerCase().includes(q));
+    });
   }, [tabItems, search]);
 
   const filteredItems = useMemo(() => {
@@ -329,7 +331,7 @@ export default function StatusReports() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search project, grantor, manager…"
+            placeholder="Search project, grantor, manager, AD number, notes…"
             className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
           />
           <span className="text-xs text-gray-500 whitespace-nowrap">{filteredItems.length} of {tabItems.length} projects</span>
@@ -506,16 +508,7 @@ export default function StatusReports() {
               />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">AD Number</label>
-              <input
-                type="text"
-                value={form.ad_number}
-                onChange={(e) => setForm((f) => ({ ...f, ad_number: e.target.value }))}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
-              />
-            </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
               <input
@@ -768,16 +761,6 @@ function ProjectEditModal({ project, allCategories, canEdit, onClose }) {
                 disabled={!canEdit}
                 value={form.funding_source}
                 onChange={(e) => setForm((f) => ({ ...f, funding_source: e.target.value }))}
-                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">AD Number</label>
-              <input
-                type="text"
-                disabled={!canEdit}
-                value={form.ad_number}
-                onChange={(e) => setForm((f) => ({ ...f, ad_number: e.target.value }))}
                 className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
               />
             </div>
