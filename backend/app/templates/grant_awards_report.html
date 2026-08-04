@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: letter landscape; margin: 1.5cm 1.8cm; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1F2937; font-size: 10pt; line-height: 1.4; }
+  h1 { font-size: 18pt; margin-bottom: 2px; }
+  .subheader { color: #6B7280; font-size: 10pt; margin-bottom: 16px; }
+  .summary { display: flex; gap: 24px; margin-bottom: 18px; }
+  .summary-box { border: 1px solid #E5E7EB; border-radius: 6px; padding: 8px 16px; }
+  .summary-label { color: #6B7280; font-size: 9pt; }
+  .summary-value { font-size: 14pt; font-weight: 700; }
+  table.awards { width: 100%; border-collapse: collapse; }
+  table.awards th { text-align: left; background-color: #F9FAFB; color: #6B7280; font-size: 9pt; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #E5E7EB; }
+  table.awards td { padding: 6px 8px; border-bottom: 1px solid #F3F4F6; vertical-align: top; }
+  table.awards tr:nth-child(even) td { background-color: #FAFAFA; }
+  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 9pt; }
+</style>
+</head>
+<body>
+
+  <h1>Grants Awarded Report</h1>
+  <div class="subheader">LA County Parks &amp; Recreation Grants Management System</div>
+
+  <div class="summary">
+    <div class="summary-box">
+      <div class="summary-label">Total Awards</div>
+      <div class="summary-value">{{ total_count }}</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-label">Total Amount Awarded</div>
+      <div class="summary-value">{{ total_amount_display }}</div>
+    </div>
+  </div>
+
+  <table class="awards">
+    <thead>
+      <tr>
+        <th>Project Name</th>
+        <th>Grantor</th>
+        <th>Award Date</th>
+        <th>Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for award in awards %}
+      <tr>
+        <td>{{ award.project_name }}</td>
+        <td>{{ award.grantor or "—" }}</td>
+        <td>{{ award.award_date.strftime("%m/%d/%Y") if award.award_date else "—" }}</td>
+        <td>{{ "${:,.2f}".format(award.amount) if award.amount is not none else "—" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">No grant awards recorded.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Generated on {{ generated_date }} by {{ generated_by }}.
+  </div>
+
+</body>
+</html>

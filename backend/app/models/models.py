@@ -117,6 +117,22 @@ class GrantAward(Base):
     )
 
 
+class DeedRestriction(Base):
+    __tablename__ = "deed_restrictions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    grantor: Mapped[str | None] = mapped_column(String, nullable=True)
+    funding_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="Draft")
+    notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    sharepoint_link: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 

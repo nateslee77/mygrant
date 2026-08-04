@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import admin, auth, dashboard, grant_awards, grants, notifications, photo_template
+from app.routers import admin, auth, dashboard, deed_restrictions, grant_awards, grants, notifications, photo_template
 
 app = FastAPI(title="LA County Parks Grants Management System")
 
@@ -21,6 +21,7 @@ app.include_router(notifications.router)
 app.include_router(admin.router)
 app.include_router(photo_template.router)
 app.include_router(grant_awards.router)
+app.include_router(deed_restrictions.router)
 
 
 @app.get("/health")

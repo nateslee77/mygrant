@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from app.schemas.grant_award import (
     GrantAwardUpdate,
 )
 from app.services.audit import write_audit_log
+from app.services.pdf import build_grant_awards_report_filename, render_grant_awards_report_pdf
 
 router = APIRouter(prefix="/grant-awards", tags=["grant-awards"])
 
@@ -31,6 +32,19 @@ def list_grant_awards(db: Session = Depends(get_db), _user: User = Depends(get_c
     awards = db.scalars(select(GrantAward).order_by(GrantAward.award_date.desc().nulls_last())).all()
     total_amount = sum((a.amount for a in awards if a.amount is not None), Decimal("0"))
     return GrantAwardListResponse(items=awards, total_count=len(awards), total_amount=total_amount)
+
+
+@router.get("/report/pdf")
+def download_grant_awards_report(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    awards = db.scalars(select(GrantAward).order_by(GrantAward.award_date.desc().nulls_last())).all()
+    pdf_bytes = render_grant_awards_report_pdf(awards, user.name)
+    filename = build_grant_awards_report_filename()
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("", response_model=GrantAwardOut, status_code=status.HTTP_201_CREATED)

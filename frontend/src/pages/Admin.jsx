@@ -19,13 +19,17 @@ const ACTION_LABELS = {
   updated_award: "Updated grant award",
   deleted_award: "Deleted grant award",
   restored_award: "Restored grant award",
+  created_deed_restriction: "Created deed restriction",
+  updated_deed_restriction: "Updated deed restriction",
+  deleted_deed_restriction: "Deleted deed restriction",
+  restored_deed_restriction: "Restored deed restriction",
   invited_user: "Invited user",
   changed_role: "Changed user role",
   deactivated_user: "Deactivated user",
   deleted_user_account: "Deleted user account",
 };
 
-const RESTORABLE_ACTIONS = new Set(["deleted_grant", "deleted_note", "deleted_award"]);
+const RESTORABLE_ACTIONS = new Set(["deleted_grant", "deleted_note", "deleted_award", "deleted_deed_restriction"]);
 
 function fieldLabel(key) {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -40,7 +44,10 @@ function describeEntry(entry) {
     entry.detail?.email ||
     null;
 
-  if ((entry.action === "updated_grant" || entry.action === "updated_award") && entry.detail?.after) {
+  if (
+    (entry.action === "updated_grant" || entry.action === "updated_award" || entry.action === "updated_deed_restriction") &&
+    entry.detail?.after
+  ) {
     const before = entry.detail.before || {};
     const after = entry.detail.after;
     const fmt = (v) => (v === null || v === undefined || v === "" ? "(blank)" : String(v));

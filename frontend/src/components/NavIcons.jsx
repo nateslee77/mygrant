@@ -58,6 +58,17 @@ export function CameraIcon() {
   );
 }
 
+export function DeedIcon() {
+  return (
+    <svg {...common}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <circle cx="12" cy="15" r="2.5" />
+      <path d="M12 17.5V20" />
+    </svg>
+  );
+}
+
 export function LinksIcon() {
   return (
     <svg {...common}>

@@ -1,10 +1,11 @@
 import re
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from app.models.models import Grant, GrantNote
+from app.models.models import Grant, GrantAward, GrantNote
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
 _env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
@@ -40,3 +41,23 @@ def render_grant_pdf(grant: Grant, notes: list[GrantNote], status: str, generate
 
 def build_snapshot_filename(project_name: str) -> str:
     return f"{_safe_filename_part(project_name)}_snapshot_{date.today().isoformat()}.pdf"
+
+
+def render_grant_awards_report_pdf(awards: list[GrantAward], generated_by_name: str) -> bytes:
+    from weasyprint import HTML  # imported lazily: see note in render_grant_pdf above.
+
+    template = _env.get_template("grant_awards_report.html")
+    total_amount = sum((a.amount for a in awards if a.amount is not None), Decimal("0"))
+
+    html_content = template.render(
+        awards=awards,
+        total_count=len(awards),
+        total_amount_display=f"${total_amount:,.2f}",
+        generated_date=date.today().strftime("%m/%d/%Y"),
+        generated_by=generated_by_name,
+    )
+    return HTML(string=html_content).write_pdf()
+
+
+def build_grant_awards_report_filename() -> str:
+    return f"grants_awarded_report_{date.today().isoformat()}.pdf"

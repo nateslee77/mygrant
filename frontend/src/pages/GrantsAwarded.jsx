@@ -90,6 +90,22 @@ export default function GrantsAwarded() {
     });
   }
 
+  async function handleDownloadReport() {
+    const response = await api.get("/grant-awards/report/pdf", { responseType: "blob" });
+    const disposition = response.headers["content-disposition"] || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : "grants_awarded_report.pdf";
+
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -103,7 +119,13 @@ export default function GrantsAwarded() {
         </div>
       </div>
 
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-3">
+        <button
+          onClick={handleDownloadReport}
+          className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md"
+        >
+          Download Report (PDF)
+        </button>
         {canEdit && (
           <button
             onClick={openNewForm}
