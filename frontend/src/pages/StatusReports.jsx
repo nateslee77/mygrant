@@ -266,7 +266,8 @@ export default function StatusReports() {
   });
 
   function openNewForm(category) {
-    setForm({ ...EMPTY_FORM, category: category || tab });
+    const cat = category || tab;
+    setForm({ ...EMPTY_FORM, category: cat, grantor: cat });
     setPendingDueDates([]);
     setNewPendingDueDate("");
     setError("");
@@ -492,7 +493,13 @@ export default function StatusReports() {
               type="text"
               list="psr-categories"
               value={form.category}
-              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  category: e.target.value,
+                  grantor: f.grantor === f.category || !f.grantor ? e.target.value : f.grantor,
+                }))
+              }
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
             />
             <datalist id="psr-categories">
@@ -753,7 +760,13 @@ function ProjectEditModal({ project, allCategories, canEdit, onClose }) {
                 list="psr-categories-edit"
                 disabled={!canEdit}
                 value={form.category}
-                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    category: e.target.value,
+                    grantor: f.grantor === f.category || !f.grantor ? e.target.value : f.grantor,
+                  }))
+                }
                 className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
               />
               <datalist id="psr-categories-edit">

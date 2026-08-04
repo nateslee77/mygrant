@@ -144,11 +144,15 @@ def parse_sheet(ws, sheet_name: str) -> list[dict]:
         elif submission_date is not None:
             submitted = True
 
+        # Sheets other than "Other" have no distinct Grantor column -- the
+        # category itself is the grantor for those.
+        grantor = cell_str(get(row, "grantor")) or (sheet_name if "grantor" not in cols else None)
+
         records.append(
             {
                 "project_name": project_name,
                 "category": sheet_name,
-                "grantor": cell_str(get(row, "grantor")),
+                "grantor": grantor,
                 "funding_source": cell_str(get(row, "funding_source")),
                 "ad_number": cell_str(get(row, "ad_number")),
                 "district": cell_int(get(row, "district")),
