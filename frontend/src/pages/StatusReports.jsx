@@ -32,6 +32,25 @@ function nextDueDate(project) {
   return unsubmitted.reduce((soonest, d) => (d.due_date < soonest.due_date ? d : soonest));
 }
 
+function latestNote(project) {
+  const notes = project.notes || [];
+  if (notes.length === 0) return null;
+  return notes.reduce((latest, n) => (n.created_at > latest.created_at ? n : latest));
+}
+
+function NotesCell({ project }) {
+  const note = latestNote(project);
+  const count = (project.notes || []).length;
+  if (!note) return <span className="text-gray-400">—</span>;
+  const preview = note.note_text.length > 50 ? `${note.note_text.slice(0, 50)}…` : note.note_text;
+  return (
+    <span className="text-gray-600" title={note.note_text}>
+      {preview}
+      {count > 1 && <span className="text-xs text-gray-400"> (+{count - 1} more)</span>}
+    </span>
+  );
+}
+
 function OverdueIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="inline-block mr-1 -mt-0.5">
@@ -40,23 +59,37 @@ function OverdueIcon() {
   );
 }
 
-function DueBadge({ project }) {
-  const due = nextDueDate(project);
-  if (!due) {
-    const hasAny = (project.due_dates || []).length > 0;
-    return <span className="text-xs text-gray-400">{hasAny ? "All submitted" : "No due date set"}</span>;
-  }
+function dueDateBadgeStyle(due) {
+  if (due.submitted) return "bg-gray-100 text-gray-400 line-through";
   const daysUntil = Math.ceil((new Date(due.due_date) - new Date(new Date().toDateString())) / 86400000);
-  let style = "bg-gray-100 text-gray-600";
-  if (daysUntil < 0) style = "bg-status-withdrawn/10 text-status-withdrawn";
-  else if (daysUntil <= 30) style = "bg-amber-100 text-amber-700";
-  else style = "bg-status-active/10 text-status-active";
+  if (daysUntil < 0) return "bg-status-withdrawn/10 text-status-withdrawn";
+  if (daysUntil <= 30) return "bg-amber-100 text-amber-700";
+  return "bg-status-active/10 text-status-active";
+}
+
+function SingleDueBadge({ due }) {
+  const daysUntil = Math.ceil((new Date(due.due_date) - new Date(new Date().toDateString())) / 86400000);
+  const overdue = !due.submitted && daysUntil < 0;
   return (
-    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${style}`}>
-      {daysUntil < 0 && <OverdueIcon />}
+    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${dueDateBadgeStyle(due)}`}>
+      {overdue && <OverdueIcon />}
       {formatDate(due.due_date)}
-      {daysUntil < 0 ? ` — passed (${Math.abs(daysUntil)}d)` : daysUntil <= 30 ? ` (${daysUntil}d)` : ""}
+      {overdue ? ` — passed (${Math.abs(daysUntil)}d)` : !due.submitted && daysUntil <= 30 ? ` (${daysUntil}d)` : ""}
     </span>
+  );
+}
+
+function DueBadge({ project }) {
+  const dueDates = [...(project.due_dates || [])].sort((a, b) => (a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0));
+  if (dueDates.length === 0) {
+    return <span className="text-xs text-gray-400">No due date set</span>;
+  }
+  return (
+    <div className="flex flex-col gap-1 items-start">
+      {dueDates.map((d) => (
+        <SingleDueBadge key={d.id} due={d} />
+      ))}
+    </div>
   );
 }
 
@@ -345,7 +378,8 @@ export default function StatusReports() {
                   sortDir={sortDir}
                   onSort={handleSort}
                 />
-                <SortableHeader label="Next PSR Due" sortKey="next_due" currentSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortableHeader label="PSR Due Date(s)" sortKey="next_due" currentSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <th className="px-5 py-2.5 font-medium">Notes</th>
                 <th className="px-5 py-2.5 font-medium">Link</th>
                 <th className="px-5 py-2.5 font-medium">Actions</th>
               </tr>
@@ -353,7 +387,7 @@ export default function StatusReports() {
             <tbody>
               {!isLoading && sortedItems.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-gray-400">
+                  <td colSpan={8} className="px-5 py-10 text-center text-gray-400">
                     {tabItems.length === 0 ? "No projects in this category yet." : "No projects match these filters."}
                   </td>
                 </tr>
@@ -368,8 +402,11 @@ export default function StatusReports() {
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.grantor || "—"}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.grant_manager || "—"}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(p.performance_end_date)}</td>
-                  <td className="px-5 py-2.5 whitespace-nowrap">
+                  <td className="px-5 py-2.5">
                     <DueBadge project={p} />
+                  </td>
+                  <td className="px-5 py-2.5 text-sm max-w-xs">
+                    <NotesCell project={p} />
                   </td>
                   <td className="px-5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     {p.link ? (
