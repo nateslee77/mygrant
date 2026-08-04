@@ -6,12 +6,14 @@ import NotificationBell from "./NotificationBell";
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", exact: true },
   { to: "/grants", label: "All Grants" },
+  { to: "/property-lookup", label: "Property Lookup" },
 ];
 
 const PAGE_TITLES = {
   "/": "Dashboard",
   "/grants": "All Grants",
   "/admin": "Admin",
+  "/property-lookup": "Property Lookup",
 };
 
 function pageTitleFor(pathname) {
