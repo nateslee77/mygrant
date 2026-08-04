@@ -391,6 +391,29 @@ export default function Admin() {
           </button>
         </div>
       </Modal>
+
+      <Modal open={!!deleteTarget} title="Delete user?" onClose={() => setDeleteTarget(null)}>
+        <p className="text-sm text-gray-600 mb-5">
+          <strong>{deleteTarget?.name}</strong> will be permanently deleted. Their notes and change-log history will
+          be preserved. This cannot be undone.
+        </p>
+        {deleteError && <div className="text-sm text-status-withdrawn mb-3">{deleteError}</div>}
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => setDeleteTarget(null)}
+            className="text-sm font-medium text-gray-600 hover:text-gray-800 px-3 py-1.5"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => deleteUser.mutate(deleteTarget.id)}
+            disabled={deleteUser.isPending}
+            className="bg-status-withdrawn hover:opacity-90 text-white text-sm font-medium px-4 py-1.5 rounded-md disabled:opacity-60"
+          >
+            Delete
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
