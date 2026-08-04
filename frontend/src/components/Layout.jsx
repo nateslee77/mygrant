@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { AdminIcon, AwardIcon, CameraIcon, DashboardIcon, GrantsIcon, MapPinIcon } from "./NavIcons";
+import { AdminIcon, AwardIcon, CameraIcon, DashboardIcon, GrantsIcon, LinksIcon, MapPinIcon } from "./NavIcons";
 import NotificationBell from "./NotificationBell";
 
 const NAV_ITEMS = [
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: "/grants-awarded", label: "Grants Awarded", Icon: AwardIcon },
   { to: "/property-lookup", label: "Property Lookup", Icon: MapPinIcon },
   { to: "/photo-template", label: "Photo Summary", Icon: CameraIcon },
+  { to: "/links-tools", label: "Links & Tools", Icon: LinksIcon },
 ];
 
 const PAGE_TITLES = {
@@ -19,6 +20,7 @@ const PAGE_TITLES = {
   "/admin": "Admin",
   "/property-lookup": "Property Lookup",
   "/photo-template": "Photo Summary Template",
+  "/links-tools": "Links & Tools",
 };
 
 function pageTitleFor(pathname) {

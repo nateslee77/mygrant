@@ -6,6 +6,7 @@ import AllGrants from "./pages/AllGrants";
 import Dashboard from "./pages/Dashboard";
 import GrantDetail from "./pages/GrantDetail";
 import GrantsAwarded from "./pages/GrantsAwarded";
+import LinksTools from "./pages/LinksTools";
 import Login from "./pages/Login";
 import NewGrant from "./pages/NewGrant";
 import PhotoTemplate from "./pages/PhotoTemplate";
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/grants-awarded" element={<GrantsAwarded />} />
           <Route path="/property-lookup" element={<PropertyLookup />} />
           <Route path="/photo-template" element={<PhotoTemplate />} />
+          <Route path="/links-tools" element={<LinksTools />} />
 
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<Admin />} />
