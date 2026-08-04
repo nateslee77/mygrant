@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ColumnFilterMenu from "../components/ColumnFilterMenu";
 import StatusPill from "../components/StatusPill";
+import StickyHorizontalScrollbar from "../components/StickyHorizontalScrollbar";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { formatCurrency, formatDate } from "../lib/format";
@@ -46,6 +47,7 @@ export default function AllGrants() {
   const [rowsPerPage, setRowsPerPage] = useState(10); // number, or "all"
   const [sortKey, setSortKey] = useState("project_name");
   const [sortDir, setSortDir] = useState("asc");
+  const scrollContainerRef = useRef(null);
 
   const activeColumnFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
   const hasActiveFilters = Boolean(search || expiringWithin || activeColumnFilterCount > 0);
@@ -232,7 +234,7 @@ export default function AllGrants() {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={scrollContainerRef}>
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="text-left text-xs text-gray-500 border-b border-gray-200 bg-gray-50 shadow-sm">
@@ -377,6 +379,8 @@ export default function AllGrants() {
           </div>
         </div>
       </div>
+
+      <StickyHorizontalScrollbar targetRef={scrollContainerRef} />
     </div>
   );
 }
