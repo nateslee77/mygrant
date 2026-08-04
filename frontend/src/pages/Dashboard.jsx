@@ -106,7 +106,7 @@ export default function Dashboard() {
                   {visiblePsrItems.map((p) => (
                     <tr
                       key={p.due_date_id}
-                      onClick={() => navigate("/status-reports")}
+                      onClick={() => navigate(`/status-reports?project=${p.project_id}`)}
                       className="border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer"
                     >
                       <td className="px-5 py-2.5 font-medium text-[#1F2937]">{p.project_name}</td>

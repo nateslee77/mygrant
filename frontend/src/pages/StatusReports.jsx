@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import ColumnFilterMenu from "../components/ColumnFilterMenu";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
@@ -216,6 +217,18 @@ export default function StatusReports() {
   const [editProject, setEditProject] = useState(null);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const targetId = searchParams.get("project");
+    if (!targetId || items.length === 0) return;
+    const target = items.find((p) => p.id === targetId);
+    if (target) {
+      setTab(target.category);
+      setEditProject(target);
+    }
+    setSearchParams({}, { replace: true });
+  }, [items, searchParams, setSearchParams]);
 
   const createProject = useMutation({
     mutationFn: async (payload) => {
