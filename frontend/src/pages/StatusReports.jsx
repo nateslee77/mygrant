@@ -231,9 +231,9 @@ export default function StatusReports() {
   }, [items, searchParams, setSearchParams]);
 
   const createProject = useMutation({
-    mutationFn: async (payload) => {
+    mutationFn: async ({ payload, dueDates }) => {
       const project = (await api.post("/psr-projects", payload)).data;
-      for (const dueDate of pendingDueDates) {
+      for (const dueDate of dueDates) {
         await api.post(`/psr-projects/${project.id}/due-dates`, { due_date: dueDate });
       }
       return project;
@@ -290,15 +290,18 @@ export default function StatusReports() {
       return;
     }
     createProject.mutate({
-      project_name: form.project_name.trim(),
-      category: form.category.trim() || DEFAULT_CATEGORIES[0],
-      grantor: form.grantor.trim() || null,
-      funding_source: form.funding_source.trim() || null,
-      ad_number: form.ad_number.trim() || null,
-      district: form.district === "" ? null : parseInt(form.district, 10),
-      grant_manager: form.grant_manager.trim() || null,
-      performance_end_date: form.performance_end_date || null,
-      link: form.link.trim() || null,
+      payload: {
+        project_name: form.project_name.trim(),
+        category: form.category.trim() || DEFAULT_CATEGORIES[0],
+        grantor: form.grantor.trim() || null,
+        funding_source: form.funding_source.trim() || null,
+        ad_number: form.ad_number.trim() || null,
+        district: form.district === "" ? null : parseInt(form.district, 10),
+        grant_manager: form.grant_manager.trim() || null,
+        performance_end_date: form.performance_end_date || null,
+        link: form.link.trim() || null,
+      },
+      dueDates: pendingDueDates,
     });
   }
 
