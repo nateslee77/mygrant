@@ -89,8 +89,10 @@ export default function StatusReports() {
   }, [items]);
 
   const [tab, setTab] = useState(DEFAULT_CATEGORIES[0]);
+  const [search, setSearch] = useState("");
   const [columnFilters, setColumnFilters] = useState({});
   const activeFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
+  const hasActiveFilters = Boolean(search) || activeFilterCount > 0;
   const [sortKey, setSortKey] = useState("project_name");
   const [sortDir, setSortDir] = useState("asc");
 
@@ -105,14 +107,22 @@ export default function StatusReports() {
     };
   }, [tabItems]);
 
-  const filteredItems = useMemo(() => {
+  const searchedItems = useMemo(() => {
+    if (!search.trim()) return tabItems;
+    const q = search.trim().toLowerCase();
     return tabItems.filter((p) =>
+      [p.project_name, p.grantor, p.grant_manager, p.funding_source, p.ad_number].some((v) => v && v.toLowerCase().includes(q))
+    );
+  }, [tabItems, search]);
+
+  const filteredItems = useMemo(() => {
+    return searchedItems.filter((p) =>
       Object.entries(columnFilters).every(([key, selected]) => {
         if (!selected || selected.length === 0) return true;
         return selected.includes(p[key]);
       })
     );
-  }, [tabItems, columnFilters]);
+  }, [searchedItems, columnFilters]);
 
   const sortedItems = useMemo(() => {
     const copy = [...filteredItems];
@@ -154,6 +164,12 @@ export default function StatusReports() {
   function switchTab(cat) {
     setTab(cat);
     setColumnFilters({});
+    setSearch("");
+  }
+
+  function clearFilters() {
+    setColumnFilters({});
+    setSearch("");
   }
 
   const [formOpen, setFormOpen] = useState(false);
@@ -274,13 +290,19 @@ export default function StatusReports() {
         )}
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-500">{filteredItems.length} of {tabItems.length} projects</span>
-          <p className="text-xs text-gray-400">Tip: click the ▼ icon on a column header to filter, or click a header to sort.</p>
-          {activeFilterCount > 0 && (
-            <button onClick={() => setColumnFilters({})} className="text-xs text-accent hover:underline">
-              Clear filters ({activeFilterCount})
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search project, grantor, manager…"
+            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+          />
+          <span className="text-xs text-gray-500 whitespace-nowrap">{filteredItems.length} of {tabItems.length} projects</span>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-xs text-accent hover:underline whitespace-nowrap">
+              Clear filters
             </button>
           )}
         </div>
