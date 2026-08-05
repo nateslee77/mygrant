@@ -24,10 +24,26 @@ MARGIN = Inches(0.4)
 # tall and push everything onto extra pages.
 PHOTO_ASPECT_RATIO = 3 / 2  # width / height
 
-# Target photo width per row-count. Tuned (with the fixed aspect ratio above)
-# so 1-3 rows -- i.e. 2 through 6 photos -- always fit on a single landscape
-# page alongside the footer block, with a safety margin for line wrapping.
-WIDTH_BY_ROWS = {1: Inches(4.6), 2: Inches(4.0), 3: Inches(2.5)}
+# How photos are split across rows, keyed by photo count. Each row is filled
+# left-to-right and centered under the widest row, e.g. 5 photos -> a row of
+# 3 on top and a centered row of 2 underneath.
+ROW_LAYOUTS = {
+    2: [2],
+    3: [2, 1],
+    4: [2, 2],
+    5: [3, 2],
+    6: [3, 3],
+}
+
+# Target photo width per (row-count, widest-row-column-count). Tuned (with
+# the fixed aspect ratio above) so every layout above fits on a single
+# landscape page alongside the footer block, with a safety margin for line
+# wrapping.
+WIDTH_BY_LAYOUT = {
+    (1, 2): Inches(4.6),
+    (2, 2): Inches(4.0),
+    (2, 3): Inches(3.0),
+}
 
 
 def _crop_to_aspect(image: Image.Image, target_ratio: float) -> Image.Image:
@@ -94,28 +110,37 @@ def generate_photo_template(
     section.page_width, section.page_height = section.page_height, section.page_width
     section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = MARGIN
 
-    rows = (len(photos) + 1) // 2
-    photo_width = WIDTH_BY_ROWS.get(rows, Inches(2.5))
+    row_layout = ROW_LAYOUTS[len(photos)]
+    max_cols = max(row_layout)
+    photo_width = WIDTH_BY_LAYOUT[(len(row_layout), max_cols)]
 
-    table = document.add_table(rows=rows, cols=2)
+    # Each photo occupies a 2-unit-wide cell within a `max_cols * 2`-unit
+    # grid. A full row uses all units; a shorter row is centered by offsetting
+    # its cells so it lines up under the middle of the widest row.
+    units = max_cols * 2
+    table = document.add_table(rows=len(row_layout), cols=units)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     _set_cell_borders_none(table)
 
-    for i, (image_bytes, label) in enumerate(photos):
-        row, col = divmod(i, 2)
-        cell = table.cell(row, col)
-        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    photo_iter = iter(photos)
+    for row_idx, count in enumerate(row_layout):
+        offset = (units - count * 2) // 2
+        for j in range(count):
+            image_bytes, label = next(photo_iter)
+            start = offset + j * 2
+            cell = table.cell(row_idx, start).merge(table.cell(row_idx, start + 1))
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
-        img_paragraph = cell.paragraphs[0]
-        img_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = img_paragraph.add_run()
-        run.add_picture(io.BytesIO(_normalize_image(image_bytes)), width=photo_width)
+            img_paragraph = cell.paragraphs[0]
+            img_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = img_paragraph.add_run()
+            run.add_picture(io.BytesIO(_normalize_image(image_bytes)), width=photo_width)
 
-        caption_paragraph = cell.add_paragraph()
-        caption_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        if label:
-            caption_run = caption_paragraph.add_run(label)
-            caption_run.font.size = Pt(10)
+            caption_paragraph = cell.add_paragraph()
+            caption_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if label:
+                caption_run = caption_paragraph.add_run(label)
+                caption_run.font.size = Pt(10)
 
     footer_table = document.add_table(rows=1, cols=2)
     footer_table.alignment = WD_TABLE_ALIGNMENT.CENTER
