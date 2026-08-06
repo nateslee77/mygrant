@@ -152,9 +152,9 @@ def render_monthly_report_docx(data: dict, generated_by_name: str) -> bytes:
     document.add_heading("Status Reports Submitted", level=1)
     _add_table(
         document,
-        ["Project Name", "Category", "Grantor", "Due Date", "Submitted Date"],
+        ["Project Name", "Grantor", "Due Date", "Submitted Date"],
         [
-            [i["project_name"], i["category"], i["grantor"] or "—", _fmt_date(i["due_date"]), _fmt_date(i["submitted_date"])]
+            [i["project_name"], i["grantor"] or "—", _fmt_date(i["due_date"]), _fmt_date(i["submitted_date"])]
             for i in data["psr_submitted"]
         ],
         "No status reports submitted this month.",
@@ -174,9 +174,9 @@ def render_monthly_report_docx(data: dict, generated_by_name: str) -> bytes:
     document.add_heading("Status Reports Due", level=1)
     _add_table(
         document,
-        ["Project Name", "Category", "Grantor", "Due Date"],
+        ["Project Name", "Grantor", "Due Date"],
         [
-            [i["project_name"], i["category"], i["grantor"] or "—", _fmt_date(i["due_date"])]
+            [i["project_name"], i["grantor"] or "—", _fmt_date(i["due_date"])]
             for i in data["psr_due"]
         ],
         "No status reports due this month.",
@@ -185,9 +185,9 @@ def render_monthly_report_docx(data: dict, generated_by_name: str) -> bytes:
     document.add_heading("Status Reports — Performance Period Ending", level=1)
     _add_table(
         document,
-        ["Project Name", "Category", "Grantor", "Performance End Date"],
+        ["Project Name", "Grantor", "Performance End Date"],
         [
-            [i["project_name"], i["category"], i["grantor"] or "—", _fmt_date(i["performance_end_date"])]
+            [i["project_name"], i["grantor"] or "—", _fmt_date(i["performance_end_date"])]
             for i in data["psr_performance_ending"]
         ],
         "No status report performance periods end this month.",

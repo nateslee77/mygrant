@@ -132,7 +132,6 @@ export default function MonthlyReport() {
             emptyMessage="No status reports submitted this month."
             columns={[
               { key: "project_name", label: "Project Name" },
-              { key: "category", label: "Category" },
               { key: "grantor", label: "Grantor" },
               { key: "due_date", label: "Due Date", render: (r) => formatDate(r.due_date) },
               { key: "submitted_date", label: "Submitted Date", render: (r) => formatDate(r.submitted_date) },
@@ -157,7 +156,6 @@ export default function MonthlyReport() {
             emptyMessage="No status reports due this month."
             columns={[
               { key: "project_name", label: "Project Name" },
-              { key: "category", label: "Category" },
               { key: "grantor", label: "Grantor" },
               { key: "due_date", label: "Due Date", render: (r) => formatDate(r.due_date) },
             ]}
@@ -169,7 +167,6 @@ export default function MonthlyReport() {
             emptyMessage="No status report performance periods end this month."
             columns={[
               { key: "project_name", label: "Project Name" },
-              { key: "category", label: "Category" },
               { key: "grantor", label: "Grantor" },
               { key: "performance_end_date", label: "Performance End Date", render: (r) => formatDate(r.performance_end_date) },
             ]}

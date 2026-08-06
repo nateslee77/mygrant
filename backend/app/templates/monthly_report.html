@@ -52,19 +52,18 @@
     <h2>Status Reports Submitted</h2>
     <table class="report">
       <thead>
-        <tr><th>Project Name</th><th>Category</th><th>Grantor</th><th>Due Date</th><th>Submitted Date</th></tr>
+        <tr><th>Project Name</th><th>Grantor</th><th>Due Date</th><th>Submitted Date</th></tr>
       </thead>
       <tbody>
         {% for i in psr_submitted %}
         <tr>
           <td>{{ i.project_name }}</td>
-          <td>{{ i.category }}</td>
           <td>{{ i.grantor or "—" }}</td>
           <td>{{ i.due_date.strftime("%m/%d/%Y") if i.due_date else "—" }}</td>
           <td>{{ i.submitted_date.strftime("%m/%d/%Y") if i.submitted_date else "—" }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="5">No status reports submitted this month.</td></tr>
+        <tr><td colspan="4">No status reports submitted this month.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -95,18 +94,17 @@
     <h2>Status Reports Due</h2>
     <table class="report">
       <thead>
-        <tr><th>Project Name</th><th>Category</th><th>Grantor</th><th>Due Date</th></tr>
+        <tr><th>Project Name</th><th>Grantor</th><th>Due Date</th></tr>
       </thead>
       <tbody>
         {% for i in psr_due %}
         <tr>
           <td>{{ i.project_name }}</td>
-          <td>{{ i.category }}</td>
           <td>{{ i.grantor or "—" }}</td>
           <td>{{ i.due_date.strftime("%m/%d/%Y") if i.due_date else "—" }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="4">No status reports due this month.</td></tr>
+        <tr><td colspan="3">No status reports due this month.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -116,18 +114,17 @@
     <h2>Status Reports &mdash; Performance Period Ending</h2>
     <table class="report">
       <thead>
-        <tr><th>Project Name</th><th>Category</th><th>Grantor</th><th>Performance End Date</th></tr>
+        <tr><th>Project Name</th><th>Grantor</th><th>Performance End Date</th></tr>
       </thead>
       <tbody>
         {% for i in psr_performance_ending %}
         <tr>
           <td>{{ i.project_name }}</td>
-          <td>{{ i.category }}</td>
           <td>{{ i.grantor or "—" }}</td>
           <td>{{ i.performance_end_date.strftime("%m/%d/%Y") if i.performance_end_date else "—" }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="4">No status report performance periods end this month.</td></tr>
+        <tr><td colspan="3">No status report performance periods end this month.</td></tr>
         {% endfor %}
       </tbody>
     </table>
