@@ -46,44 +46,121 @@ const RESTORABLE_ACTIONS = new Set([
   "deleted_psr_project",
 ]);
 
+const CATEGORY_STYLES = {
+  created: "bg-status-active/10 text-status-active",
+  updated: "bg-accent-light text-accent-dark",
+  deleted: "bg-status-withdrawn/10 text-status-withdrawn",
+  restored: "bg-purple-100 text-purple-700",
+  other: "bg-gray-100 text-gray-600",
+};
+
+function categoryFor(action) {
+  if (action.startsWith("created_") || action.startsWith("added_") || action === "invited_user") return "created";
+  if (action.startsWith("updated_") || action === "changed_role") return "updated";
+  if (action.startsWith("deleted_") || action === "deactivated_user") return "deleted";
+  if (action.startsWith("restored_")) return "restored";
+  return "other";
+}
+
 function fieldLabel(key) {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function fmtVal(v) {
+  return v === null || v === undefined || v === "" ? "(blank)" : String(v);
+}
+
+// Every change is normalized to { field, after, before? } so the table can render
+// a consistent "Field: before → after" (or "Field: value" when there's no before)
+// regardless of which action produced it.
 function describeEntry(entry) {
   const label = ACTION_LABELS[entry.action] || entry.action;
+  const detail = entry.detail || {};
   const subject =
     entry.grant_project_name ||
-    entry.detail?.project_name ||
-    entry.detail?.after?.project_name ||
-    entry.detail?.email ||
+    detail.project_name ||
+    detail.after?.project_name ||
+    detail.email ||
+    detail.name ||
     null;
 
-  if (
-    ["updated_grant", "updated_award", "updated_deed_restriction", "updated_psr_project"].includes(entry.action) &&
-    entry.detail?.after
-  ) {
-    const before = entry.detail.before || {};
-    const after = entry.detail.after;
-    const fmt = (v) => (v === null || v === undefined || v === "" ? "(blank)" : String(v));
-    const parts = Object.keys(after)
+  const UPDATE_ACTIONS = ["updated_grant", "updated_award", "updated_deed_restriction", "updated_psr_project"];
+  if (UPDATE_ACTIONS.includes(entry.action) && detail.after) {
+    const before = detail.before || {};
+    const after = detail.after;
+    const changes = Object.keys(after)
       .filter((key) => key !== "project_name")
-      .map((key) => `${fieldLabel(key)}: ${fmt(before[key])} → ${fmt(after[key])}`);
-    return { label, subject, extra: parts.join("; ") || null };
+      .map((key) => ({ field: fieldLabel(key), before: fmtVal(before[key]), after: fmtVal(after[key]) }));
+    return { label, subject, changes };
   }
-  if (entry.action === "changed_role" && entry.detail) {
-    return { label, subject, extra: `${entry.detail.before} → ${entry.detail.after}` };
+
+  if (entry.action === "updated_sharepoint_link") {
+    return { label, subject, changes: [{ field: "SharePoint Link", before: fmtVal(detail.before), after: fmtVal(detail.after) }] };
   }
-  if (entry.action === "invited_user" && entry.detail) {
-    return { label, subject: entry.detail.email, extra: `Role: ${entry.detail.role}` };
+
+  const CREATE_ACTIONS = ["created_grant", "created_award", "created_deed_restriction", "created_psr_project"];
+  if (CREATE_ACTIONS.includes(entry.action) && detail.after) {
+    const after = detail.after;
+    const changes = Object.keys(after)
+      .filter((key) => key !== "project_name" && after[key] !== null && after[key] !== "" && after[key] !== undefined)
+      .map((key) => ({ field: fieldLabel(key), after: fmtVal(after[key]) }));
+    return { label, subject, changes };
   }
+
+  if (entry.action === "changed_role" && detail.before !== undefined) {
+    return { label, subject, changes: [{ field: "Role", before: fmtVal(detail.before), after: fmtVal(detail.after) }] };
+  }
+
+  if (entry.action === "invited_user") {
+    return { label, subject: detail.email, changes: [{ field: "Role", after: fmtVal(detail.role) }] };
+  }
+
+  if (entry.action === "deleted_user_account") {
+    return {
+      label,
+      subject: detail.name || detail.email,
+      changes: [
+        { field: "Email", after: fmtVal(detail.email) },
+        { field: "Role", after: fmtVal(detail.role) },
+      ],
+    };
+  }
+
   if (
-    (entry.action === "added_note" || entry.action === "deleted_note" || entry.action === "restored_note") &&
-    entry.detail?.note_text
+    ["added_note", "deleted_note", "restored_note", "added_psr_note", "deleted_psr_note"].includes(entry.action) &&
+    detail.note_text
   ) {
-    return { label, subject, extra: `"${entry.detail.note_text.slice(0, 80)}${entry.detail.note_text.length > 80 ? "…" : ""}"` };
+    const text = detail.note_text.length > 100 ? `${detail.note_text.slice(0, 100)}…` : detail.note_text;
+    return { label, subject, changes: [{ field: "Note", after: `"${text}"` }] };
   }
-  return { label, subject, extra: null };
+
+  if (["added_psr_due_date", "deleted_psr_due_date"].includes(entry.action) && detail.due_date) {
+    return { label, subject, changes: [{ field: "Due Date", after: fmtVal(detail.due_date) }] };
+  }
+
+  if (entry.action === "updated_psr_due_date" && detail.changes) {
+    const changes = Object.entries(detail.changes).map(([key, value]) => ({ field: fieldLabel(key), after: fmtVal(value) }));
+    return { label, subject, changes };
+  }
+
+  if (entry.action.startsWith("restored_")) {
+    const changes = [];
+    if (detail.notes_restored !== undefined) changes.push({ field: "Notes restored", after: fmtVal(detail.notes_restored) });
+    changes.push({ field: "Restored from", after: "a deletion logged earlier in this Change Log" });
+    return { label, subject, changes };
+  }
+
+  // Fallback for deletions: show the non-empty fields captured in the snapshot
+  // so there's still a record of what was removed.
+  if (detail.snapshot) {
+    const snap = detail.snapshot;
+    const changes = Object.keys(snap)
+      .filter((key) => key !== "project_name" && key !== "created_at" && snap[key] !== null && snap[key] !== "")
+      .map((key) => ({ field: fieldLabel(key), after: fmtVal(snap[key]) }));
+    return { label, subject, changes };
+  }
+
+  return { label, subject, changes: [] };
 }
 
 const USER_STATUS_STYLES = {
@@ -201,7 +278,7 @@ export default function Admin() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6">
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-sm font-semibold text-gray-500 mb-4">Invite User</h2>
         <form onSubmit={submitInvite} className="flex flex-wrap items-end gap-3">
@@ -340,42 +417,67 @@ export default function Admin() {
         {restoreError && <div className="px-6 pt-4 text-sm text-status-withdrawn">{restoreError}</div>}
         {auditItems.length > 0 && (
           <>
-            <div className={auditExpanded ? "max-h-[32rem] overflow-y-auto" : ""}>
+            <div className={auditExpanded ? "max-h-[42rem] overflow-y-auto" : ""}>
               <table className="w-full max-w-full text-sm" style={{ tableLayout: "auto" }}>
                 <thead className={auditExpanded ? "sticky top-0 bg-white z-10" : ""}>
                   <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
-                    <th className="px-3 py-2 font-medium">When</th>
-                    <th className="px-3 py-2 font-medium">By</th>
-                    <th className="px-3 py-2 font-medium">Action</th>
-                    <th className="px-3 py-2 font-medium">Details</th>
+                    <th className="px-4 py-2.5 font-medium w-32">When</th>
+                    <th className="px-4 py-2.5 font-medium w-32">By</th>
+                    <th className="px-4 py-2.5 font-medium w-64">Change</th>
+                    <th className="px-4 py-2.5 font-medium">Details</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleAuditItems.map((entry) => {
-                    const { label, subject, extra } = describeEntry(entry);
+                    const { label, subject, changes } = describeEntry(entry);
                     const canRestore = RESTORABLE_ACTIONS.has(entry.action);
+                    const category = categoryFor(entry.action);
                     return (
-                      <tr key={entry.id} className="border-b border-gray-50 last:border-0 align-top">
-                        <td className="px-3 py-3 text-gray-500 text-xs break-words w-24">
+                      <tr key={entry.id} className="border-b border-gray-50 last:border-0 align-top hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                           {new Date(entry.created_at).toLocaleString(undefined, {
                             month: "short",
                             day: "numeric",
+                            year: "numeric",
                             hour: "numeric",
                             minute: "2-digit",
                           })}
                         </td>
-                        <td className="px-3 py-3 font-medium text-[#1F2937] break-words w-20">{entry.user_name}</td>
-                        <td className="px-3 py-3 text-gray-700 break-words">
-                          {label}
-                          {subject && <span className="text-gray-500"> — {subject}</span>}
+                        <td className="px-4 py-3 font-medium text-[#1F2937] break-words">{entry.user_name}</td>
+                        <td className="px-4 py-3 break-words">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${CATEGORY_STYLES[category]}`}
+                          >
+                            {label}
+                          </span>
+                          {subject && <div className="mt-1 text-sm font-medium text-[#1F2937]">{subject}</div>}
                         </td>
-                        <td className="px-3 py-3 text-gray-500 break-words">
-                          <div>{extra || "—"}</div>
+                        <td className="px-4 py-3 text-gray-600 break-words">
+                          {changes.length > 0 ? (
+                            <ul className="space-y-1">
+                              {changes.map((c, i) => (
+                                <li key={i} className="text-xs leading-relaxed">
+                                  <span className="text-gray-500">{c.field}: </span>
+                                  {c.before !== undefined ? (
+                                    <>
+                                      <span className="text-gray-400 line-through">{c.before}</span>
+                                      <span className="text-gray-400"> → </span>
+                                      <span className="font-medium text-[#1F2937]">{c.after}</span>
+                                    </>
+                                  ) : (
+                                    <span className="font-medium text-[#1F2937]">{c.after}</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
                           {canRestore && (
                             <button
                               onClick={() => restoreEntry.mutate(entry.id)}
                               disabled={restoreEntry.isPending}
-                              className="mt-1 text-xs text-accent hover:underline font-medium disabled:opacity-50"
+                              className="mt-1.5 text-xs text-accent hover:underline font-medium disabled:opacity-50"
                             >
                               Restore
                             </button>
