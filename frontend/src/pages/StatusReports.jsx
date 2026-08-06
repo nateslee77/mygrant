@@ -403,27 +403,7 @@ export default function StatusReports() {
             placeholder="Search project, grantor, manager, AD number, notes…"
             className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
           />
-          <div className="flex items-center gap-1">
-            {STATUS_FILTERS.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setStatusFilter((prev) => (prev === f.key ? null : f.key))}
-                className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border ${
-                  statusFilter === f.key
-                    ? "bg-accent-light text-accent-dark border-accent"
-                    : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
           <span className="text-xs text-gray-500 whitespace-nowrap">{filteredItems.length} of {tabItems.length} projects</span>
-          {hasActiveFilters && (
-            <button onClick={clearFilters} className="text-xs text-accent hover:underline whitespace-nowrap">
-              Clear filters
-            </button>
-          )}
         </div>
         {canEdit && (
           <button
@@ -431,6 +411,29 @@ export default function StatusReports() {
             className="bg-accent hover:bg-accent-dark text-white text-sm font-medium px-4 py-2 rounded-md"
           >
             + New Project
+          </button>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-1 flex-wrap">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setStatusFilter((prev) => (prev === f.key ? null : f.key))}
+              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border ${
+                statusFilter === f.key
+                  ? "bg-accent-light text-accent-dark border-accent"
+                  : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        {hasActiveFilters && (
+          <button onClick={clearFilters} className="text-xs text-accent hover:underline whitespace-nowrap">
+            Clear filters
           </button>
         )}
       </div>

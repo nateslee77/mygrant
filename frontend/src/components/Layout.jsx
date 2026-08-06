@@ -21,13 +21,15 @@ const NAV_ITEMS = [
   { to: "/status-reports", label: "Status Reports", Icon: StatusReportIcon },
   { to: "/grants-awarded", label: "Grants Awarded", Icon: AwardIcon },
   { to: "/deed-restrictions", label: "Deed Restrictions", Icon: DeedIcon },
-  { to: "/property-lookup", label: "Property Lookup", Icon: MapPinIcon },
-  { to: "/monthly-report", label: "Monthly Report", Icon: CalendarIcon },
   {
-    to: "/links-tools",
     label: "Links & Tools",
     Icon: LinksIcon,
-    children: [{ to: "/photo-template", label: "Photo Summary", Icon: CameraIcon }],
+    children: [
+      { to: "/links-tools", label: "Links", Icon: LinksIcon },
+      { to: "/photo-template", label: "Photo Summary", Icon: CameraIcon },
+      { to: "/property-lookup", label: "Property Lookup", Icon: MapPinIcon },
+      { to: "/monthly-report", label: "Monthly Report", Icon: CalendarIcon },
+    ],
   },
 ];
 
@@ -41,7 +43,7 @@ const PAGE_TITLES = {
   "/admin": "Admin",
   "/property-lookup": "Property Lookup",
   "/photo-template": "Photo Summary Template",
-  "/links-tools": "Links & Tools",
+  "/links-tools": "Links",
 };
 
 function pageTitleFor(pathname) {
@@ -75,7 +77,7 @@ export default function Layout() {
         <nav className="w-56 flex-1 px-3 py-4 space-y-1">
           {NAV_ITEMS.map((item) =>
             item.children ? (
-              <ExpandableNavItem key={item.to} item={item} currentPath={location.pathname} />
+              <ExpandableNavItem key={item.label} item={item} currentPath={location.pathname} />
             ) : (
               <NavLink
                 key={item.to}
@@ -148,39 +150,57 @@ function ExpandableNavItem({ item, currentPath }) {
     if (childActive) setOpen(true);
   }, [childActive]);
 
+  const chevron = (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+
   return (
     <div>
-      <div className="flex items-center gap-0.5">
-        <NavLink
-          to={item.to}
-          className={({ isActive }) =>
-            `flex-1 flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium min-w-0 ${
-              isActive ? "bg-accent-light text-accent-dark" : "text-gray-600 hover:bg-gray-50"
-            }`
-          }
-        >
-          <item.Icon />
-          {item.label}
-        </NavLink>
+      {item.to ? (
+        <div className="flex items-center gap-0.5">
+          <NavLink
+            to={item.to}
+            className={({ isActive }) =>
+              `flex-1 flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium min-w-0 ${
+                isActive ? "bg-accent-light text-accent-dark" : "text-gray-600 hover:bg-gray-50"
+              }`
+            }
+          >
+            <item.Icon />
+            {item.label}
+          </NavLink>
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="shrink-0 p-1.5 rounded-md hover:bg-gray-100 text-gray-400"
+            aria-label={open ? `Collapse ${item.label}` : `Expand ${item.label}`}
+            aria-expanded={open}
+          >
+            {chevron}
+          </button>
+        </div>
+      ) : (
         <button
           onClick={() => setOpen((o) => !o)}
-          className="shrink-0 p-1.5 rounded-md hover:bg-gray-100 text-gray-400"
-          aria-label={open ? `Collapse ${item.label}` : `Expand ${item.label}`}
           aria-expanded={open}
+          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium ${
+            childActive ? "text-accent-dark" : "text-gray-600 hover:bg-gray-50"
+          }`}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className={`transition-transform ${open ? "rotate-180" : ""}`}
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <item.Icon />
+          <span className="flex-1 text-left">{item.label}</span>
+          {chevron}
         </button>
-      </div>
+      )}
       {open && (
         <div className="mt-1 space-y-1 pl-4">
           {item.children.map((child) => (
