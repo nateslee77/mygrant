@@ -3,6 +3,7 @@ import { useState } from "react";
 import Modal from "../components/Modal";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { downloadFile } from "../lib/download";
 import { formatCurrency, formatDate } from "../lib/format";
 
 const EMPTY_FORM = { project_name: "", grantor: "", award_date: "", amount: "" };
@@ -91,19 +92,10 @@ export default function GrantsAwarded() {
   }
 
   async function handleDownloadReport() {
-    const response = await api.get("/grant-awards/report/pdf", { responseType: "blob" });
-    const disposition = response.headers["content-disposition"] || "";
-    const match = disposition.match(/filename="?([^"]+)"?/);
-    const filename = match ? match[1] : "grants_awarded_report.pdf";
-
-    const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    await downloadFile("/grant-awards/report/pdf", {
+      fallbackFilename: "grants_awarded_report.pdf",
+      mimeType: "application/pdf",
+    });
   }
 
   return (

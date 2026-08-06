@@ -61,3 +61,16 @@ def render_grant_awards_report_pdf(awards: list[GrantAward], generated_by_name: 
 
 def build_grant_awards_report_filename() -> str:
     return f"grants_awarded_report_{date.today().isoformat()}.pdf"
+
+
+def render_monthly_report_pdf(data: dict, generated_by_name: str) -> bytes:
+    from weasyprint import HTML  # imported lazily: see note in render_grant_pdf above.
+
+    template = _env.get_template("monthly_report.html")
+    html_content = template.render(
+        **data,
+        grants_awarded_amount_display=f"${data['grants_awarded_amount']:,.2f}",
+        generated_date=date.today().strftime("%m/%d/%Y"),
+        generated_by=generated_by_name,
+    )
+    return HTML(string=html_content).write_pdf()

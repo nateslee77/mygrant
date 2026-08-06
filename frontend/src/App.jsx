@@ -9,6 +9,7 @@ import DeedRestrictions from "./pages/DeedRestrictions";
 import GrantsAwarded from "./pages/GrantsAwarded";
 import LinksTools from "./pages/LinksTools";
 import Login from "./pages/Login";
+import MonthlyReport from "./pages/MonthlyReport";
 import NewGrant from "./pages/NewGrant";
 import PhotoTemplate from "./pages/PhotoTemplate";
 import PropertyLookup from "./pages/PropertyLookup";
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/grants/:id" element={<GrantDetail />} />
           <Route path="/status-reports" element={<StatusReports />} />
           <Route path="/grants-awarded" element={<GrantsAwarded />} />
+          <Route path="/monthly-report" element={<MonthlyReport />} />
           <Route path="/deed-restrictions" element={<DeedRestrictions />} />
           <Route path="/property-lookup" element={<PropertyLookup />} />
           <Route path="/photo-template" element={<PhotoTemplate />} />

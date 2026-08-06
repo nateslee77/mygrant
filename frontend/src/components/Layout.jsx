@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   AdminIcon,
   AwardIcon,
+  CalendarIcon,
   CameraIcon,
   DashboardIcon,
   DeedIcon,
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { to: "/grants", label: "All Grants", Icon: GrantsIcon },
   { to: "/status-reports", label: "Status Reports", Icon: StatusReportIcon },
   { to: "/grants-awarded", label: "Grants Awarded", Icon: AwardIcon },
+  { to: "/monthly-report", label: "Monthly Report", Icon: CalendarIcon },
   { to: "/deed-restrictions", label: "Deed Restrictions", Icon: DeedIcon },
   { to: "/property-lookup", label: "Property Lookup", Icon: MapPinIcon },
   { to: "/photo-template", label: "Photo Summary", Icon: CameraIcon },
@@ -30,6 +32,7 @@ const PAGE_TITLES = {
   "/grants": "All Grants",
   "/status-reports": "Status Reports",
   "/grants-awarded": "Grants Awarded",
+  "/monthly-report": "Monthly Report",
   "/deed-restrictions": "Deed Restrictions",
   "/admin": "Admin",
   "/property-lookup": "Property Lookup",
