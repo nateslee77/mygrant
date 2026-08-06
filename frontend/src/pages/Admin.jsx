@@ -33,6 +33,7 @@ const ACTION_LABELS = {
   added_psr_note: "Added status report note",
   deleted_psr_note: "Deleted status report note",
   invited_user: "Invited user",
+  resent_invite: "Resent invite",
   changed_role: "Changed user role",
   deactivated_user: "Deactivated user",
   deleted_user_account: "Deleted user account",
@@ -55,7 +56,8 @@ const CATEGORY_STYLES = {
 };
 
 function categoryFor(action) {
-  if (action.startsWith("created_") || action.startsWith("added_") || action === "invited_user") return "created";
+  if (action.startsWith("created_") || action.startsWith("added_") || action === "invited_user" || action === "resent_invite")
+    return "created";
   if (action.startsWith("updated_") || action === "changed_role") return "updated";
   if (action.startsWith("deleted_") || action === "deactivated_user") return "deleted";
   if (action.startsWith("restored_")) return "restored";
@@ -111,7 +113,7 @@ function describeEntry(entry) {
     return { label, subject, changes: [{ field: "Role", before: fmtVal(detail.before), after: fmtVal(detail.after) }] };
   }
 
-  if (entry.action === "invited_user") {
+  if (entry.action === "invited_user" || entry.action === "resent_invite") {
     return { label, subject: detail.email, changes: [{ field: "Role", after: fmtVal(detail.role) }] };
   }
 
@@ -239,6 +241,22 @@ export default function Admin() {
     navigator.clipboard.writeText(inviteLink);
     setLinkCopied(true);
   }
+
+  const resendInvite = useMutation({
+    mutationFn: async (userId) => (await api.post(`/admin/users/${userId}/resend-invite`)).data,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-audit-log"] });
+      setInviteError("");
+      setInviteLink(data.invite_link);
+      setInviteLinkRole(data.role);
+      setLinkCopied(false);
+    },
+    onError: (err) => {
+      setInviteError(err.response?.data?.detail || "Failed to resend invite");
+      setInviteLink("");
+    },
+  });
 
   const changeRole = useMutation({
     mutationFn: async ({ userId, role }) => (await api.patch(`/admin/users/${userId}/role`, { role })).data,
@@ -380,6 +398,15 @@ export default function Admin() {
                     <span className="text-xs text-gray-400">(you)</span>
                   ) : (
                     <>
+                      {u.status === "invited" && (
+                        <button
+                          onClick={() => resendInvite.mutate(u.id)}
+                          disabled={resendInvite.isPending}
+                          className="text-sm text-accent hover:underline mr-3 disabled:opacity-50"
+                        >
+                          Resend Invite
+                        </button>
+                      )}
                       {u.status !== "deactivated" && (
                         <button
                           onClick={() => setDeactivateTarget(u)}

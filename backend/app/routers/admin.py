@@ -52,6 +52,11 @@ def invite_user(payload: InviteRequest, db: Session = Depends(get_db), admin: Us
 
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
+        if existing.status == "invited":
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "This email already has a pending invite — use Resend Invite in the Users table instead",
+            )
         raise HTTPException(status.HTTP_409_CONFLICT, "A user with this email already exists")
 
     new_user = User(
@@ -79,6 +84,33 @@ def invite_user(payload: InviteRequest, db: Session = Depends(get_db), admin: Us
 
     invite_link = f"{settings.frontend_url}/set-password?token={new_user.invite_token}"
     return InviteResponse(**UserOut.model_validate(new_user).model_dump(), invite_link=invite_link)
+
+
+@router.post("/users/{user_id}/resend-invite", response_model=InviteResponse)
+def resend_invite(user_id: uuid.UUID, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    target = db.get(User, user_id)
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if target.status != "invited":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only users with a pending invite can have it resent")
+
+    target.invite_token = generate_invite_token()
+    target.invite_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=INVITE_EXPIRY_HOURS)
+
+    write_audit_log(
+        db,
+        user_id=admin.id,
+        user_name=admin.name,
+        action="resent_invite",
+        table_name="users",
+        record_id=target.id,
+        detail={"email": target.email, "role": target.role},
+    )
+    db.commit()
+    db.refresh(target)
+
+    invite_link = f"{settings.frontend_url}/set-password?token={target.invite_token}"
+    return InviteResponse(**UserOut.model_validate(target).model_dump(), invite_link=invite_link)
 
 
 @router.patch("/users/{user_id}/role", response_model=UserOut)
