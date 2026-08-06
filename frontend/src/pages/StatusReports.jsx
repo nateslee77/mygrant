@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import ColumnFilterMenu from "../components/ColumnFilterMenu";
 import Modal from "../components/Modal";
+import OpenLinkButton from "../components/OpenLinkButton";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { formatDate } from "../lib/format";
@@ -498,13 +499,7 @@ export default function StatusReports() {
                     <NotesCell project={p} />
                   </td>
                   <td className="px-5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    {p.link ? (
-                      <a href={p.link} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline text-sm">
-                        Open ↗
-                      </a>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
+                    {p.link ? <OpenLinkButton url={p.link} /> : <span className="text-gray-400">—</span>}
                   </td>
                   <td className="px-5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => setEditProject(p)} className="text-accent hover:underline text-sm mr-3">
@@ -632,13 +627,16 @@ export default function StatusReports() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Link</label>
-            <input
-              type="text"
-              value={form.link}
-              onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))}
-              placeholder="https://…"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={form.link}
+                onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))}
+                placeholder="https://…"
+                className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+              />
+              <OpenLinkButton url={form.link.trim()} size="md" />
+            </div>
           </div>
 
           <div>
@@ -777,16 +775,21 @@ function ProjectEditModal({ project, allCategories, canEdit, onClose }) {
     },
   });
 
-  const toggleSubmitted = useMutation({
-    mutationFn: async (due) =>
-      (
-        await api.patch(`/psr-projects/${activeProject.id}/due-dates/${due.id}`, {
-          submitted: !due.submitted,
-          submitted_date: !due.submitted ? new Date().toISOString().slice(0, 10) : null,
-        })
-      ).data,
+  const updateDueDate = useMutation({
+    mutationFn: async ({ id, payload }) => (await api.patch(`/psr-projects/${activeProject.id}/due-dates/${id}`, payload)).data,
     onSuccess: invalidate,
   });
+
+  function handleToggleSubmitted(due) {
+    if (due.submitted) {
+      updateDueDate.mutate({ id: due.id, payload: { submitted: false, submitted_date: null } });
+    } else {
+      updateDueDate.mutate({
+        id: due.id,
+        payload: { submitted: true, submitted_date: new Date().toISOString().slice(0, 10) },
+      });
+    }
+  }
 
   const removeDueDate = useMutation({
     mutationFn: async (dueId) => (await api.delete(`/psr-projects/${activeProject.id}/due-dates/${dueId}`)).data,
@@ -900,14 +903,17 @@ function ProjectEditModal({ project, allCategories, canEdit, onClose }) {
             </div>
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Link</label>
-              <input
-                type="text"
-                disabled={!canEdit}
-                value={form.link}
-                onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))}
-                placeholder="https://…"
-                className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  disabled={!canEdit}
+                  value={form.link}
+                  onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))}
+                  placeholder="https://…"
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+                />
+                <OpenLinkButton url={form.link.trim()} size="md" />
+              </div>
             </div>
           </div>
           {fieldsError && <div className="text-sm text-status-withdrawn mt-2">{fieldsError}</div>}
@@ -932,13 +938,13 @@ function ProjectEditModal({ project, allCategories, canEdit, onClose }) {
               const daysUntil = Math.ceil((new Date(d.due_date) - new Date(new Date().toDateString())) / 86400000);
               const overdue = !d.submitted && daysUntil < 0;
               return (
-                <div key={d.id} className="flex items-center justify-between border border-gray-100 rounded-md px-3 py-1.5">
-                  <div className="flex items-center gap-2 text-sm">
+                <div key={d.id} className="flex items-center justify-between border border-gray-100 rounded-md px-3 py-1.5 gap-2">
+                  <div className="flex items-center gap-2 text-sm flex-wrap">
                     <input
                       type="checkbox"
                       checked={d.submitted}
                       disabled={!canEdit}
-                      onChange={() => toggleSubmitted.mutate(d)}
+                      onChange={() => handleToggleSubmitted(d)}
                       className="rounded border-gray-300 text-accent focus:ring-accent"
                     />
                     <span className={d.submitted ? "line-through text-gray-400" : overdue ? "text-status-withdrawn font-medium" : "text-[#1F2937]"}>
@@ -946,12 +952,24 @@ function ProjectEditModal({ project, allCategories, canEdit, onClose }) {
                       {formatDate(d.due_date)}
                       {overdue ? " — passed" : ""}
                     </span>
-                    {d.submitted && d.submitted_date && (
-                      <span className="text-xs text-gray-400">(submitted {formatDate(d.submitted_date)})</span>
+                    {d.submitted && (
+                      <span className="flex items-center gap-1 text-xs text-gray-500">
+                        Submitted on:
+                        <input
+                          type="date"
+                          value={d.submitted_date || ""}
+                          disabled={!canEdit}
+                          onChange={(e) =>
+                            updateDueDate.mutate({ id: d.id, payload: { submitted_date: e.target.value || null } })
+                          }
+                          title="This doesn't have to be today — set it to the date the report was actually submitted."
+                          className="border border-gray-300 rounded-md px-2 py-0.5 text-xs focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:bg-gray-50"
+                        />
+                      </span>
                     )}
                   </div>
                   {canEdit && (
-                    <button onClick={() => removeDueDate.mutate(d.id)} className="text-xs text-status-withdrawn hover:underline">
+                    <button onClick={() => removeDueDate.mutate(d.id)} className="text-xs text-status-withdrawn hover:underline whitespace-nowrap">
                       Remove
                     </button>
                   )}

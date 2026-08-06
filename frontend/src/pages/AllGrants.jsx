@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ColumnFilterMenu from "../components/ColumnFilterMenu";
+import OpenLinkButton from "../components/OpenLinkButton";
 import StatusPill from "../components/StatusPill";
 import StickyHorizontalScrollbar from "../components/StickyHorizontalScrollbar";
 import { useAuth } from "../context/AuthContext";
@@ -298,15 +299,7 @@ export default function AllGrants() {
                   </td>
                   <td className="px-4 py-2.5">
                     {g.sharepoint_link ? (
-                      <a
-                        href={g.sharepoint_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-accent hover:underline whitespace-nowrap"
-                      >
-                        Open ↗
-                      </a>
+                      <OpenLinkButton url={g.sharepoint_link} />
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}

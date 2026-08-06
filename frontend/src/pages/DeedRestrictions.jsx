@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import ColumnFilterMenu from "../components/ColumnFilterMenu";
 import Modal from "../components/Modal";
+import OpenLinkButton from "../components/OpenLinkButton";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 
@@ -243,14 +244,7 @@ export default function DeedRestrictions() {
                   </td>
                   <td className="px-5 py-2.5 whitespace-nowrap">
                     {d.sharepoint_link ? (
-                      <a
-                        href={d.sharepoint_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent hover:underline text-sm"
-                      >
-                        Open ↗
-                      </a>
+                      <OpenLinkButton url={d.sharepoint_link} />
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}
@@ -323,12 +317,15 @@ export default function DeedRestrictions() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">SharePoint Link</label>
-            <input
-              type="text"
-              value={form.sharepoint_link}
-              onChange={(e) => setForm((f) => ({ ...f, sharepoint_link: e.target.value }))}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={form.sharepoint_link}
+                onChange={(e) => setForm((f) => ({ ...f, sharepoint_link: e.target.value }))}
+                className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+              />
+              <OpenLinkButton url={form.sharepoint_link.trim()} size="md" />
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
