@@ -415,7 +415,7 @@ export default function StatusReports() {
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1 flex-wrap">
           {STATUS_FILTERS.map((f) => (
             <button

@@ -160,7 +160,6 @@ export default function MonthlyReport() {
               { key: "category", label: "Category" },
               { key: "grantor", label: "Grantor" },
               { key: "due_date", label: "Due Date", render: (r) => formatDate(r.due_date) },
-              { key: "submitted", label: "Status", render: (r) => (r.submitted ? "Submitted" : "Not submitted") },
             ]}
             rows={psrDue}
           />

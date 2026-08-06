@@ -95,7 +95,7 @@
     <h2>Status Reports Due</h2>
     <table class="report">
       <thead>
-        <tr><th>Project Name</th><th>Category</th><th>Grantor</th><th>Due Date</th><th>Status</th></tr>
+        <tr><th>Project Name</th><th>Category</th><th>Grantor</th><th>Due Date</th></tr>
       </thead>
       <tbody>
         {% for i in psr_due %}
@@ -104,10 +104,9 @@
           <td>{{ i.category }}</td>
           <td>{{ i.grantor or "—" }}</td>
           <td>{{ i.due_date.strftime("%m/%d/%Y") if i.due_date else "—" }}</td>
-          <td>{{ "Submitted" if i.submitted else "Not submitted" }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="5">No status reports due this month.</td></tr>
+        <tr><td colspan="4">No status reports due this month.</td></tr>
         {% endfor %}
       </tbody>
     </table>

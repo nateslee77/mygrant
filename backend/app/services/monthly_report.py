@@ -43,7 +43,7 @@ def fetch_monthly_report(db: Session, year: int, month: int) -> dict:
     psr_due_rows = db.execute(
         select(PSRDueDate, PSRProject)
         .join(PSRProject, PSRDueDate.project_id == PSRProject.id)
-        .where(PSRDueDate.due_date >= start, PSRDueDate.due_date <= end)
+        .where(PSRDueDate.due_date >= start, PSRDueDate.due_date <= end, PSRDueDate.submitted.is_(False))
         .order_by(PSRDueDate.due_date.asc())
     ).all()
 
@@ -174,15 +174,9 @@ def render_monthly_report_docx(data: dict, generated_by_name: str) -> bytes:
     document.add_heading("Status Reports Due", level=1)
     _add_table(
         document,
-        ["Project Name", "Category", "Grantor", "Due Date", "Status"],
+        ["Project Name", "Category", "Grantor", "Due Date"],
         [
-            [
-                i["project_name"],
-                i["category"],
-                i["grantor"] or "—",
-                _fmt_date(i["due_date"]),
-                "Submitted" if i["submitted"] else "Not submitted",
-            ]
+            [i["project_name"], i["category"], i["grantor"] or "—", _fmt_date(i["due_date"])]
             for i in data["psr_due"]
         ],
         "No status reports due this month.",
