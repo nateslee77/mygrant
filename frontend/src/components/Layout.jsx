@@ -20,11 +20,15 @@ const NAV_ITEMS = [
   { to: "/grants", label: "All Grants", Icon: GrantsIcon },
   { to: "/status-reports", label: "Status Reports", Icon: StatusReportIcon },
   { to: "/grants-awarded", label: "Grants Awarded", Icon: AwardIcon },
-  { to: "/monthly-report", label: "Monthly Report", Icon: CalendarIcon },
   { to: "/deed-restrictions", label: "Deed Restrictions", Icon: DeedIcon },
   { to: "/property-lookup", label: "Property Lookup", Icon: MapPinIcon },
-  { to: "/photo-template", label: "Photo Summary", Icon: CameraIcon },
-  { to: "/links-tools", label: "Links & Tools", Icon: LinksIcon },
+  { to: "/monthly-report", label: "Monthly Report", Icon: CalendarIcon },
+  {
+    to: "/links-tools",
+    label: "Links & Tools",
+    Icon: LinksIcon,
+    children: [{ to: "/photo-template", label: "Photo Summary", Icon: CameraIcon }],
+  },
 ];
 
 const PAGE_TITLES = {
@@ -69,21 +73,25 @@ export default function Layout() {
           <div className="text-xs text-gray-500">Grants Management</div>
         </div>
         <nav className="w-56 flex-1 px-3 py-4 space-y-1">
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.exact}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive ? "bg-accent-light text-accent-dark" : "text-gray-600 hover:bg-gray-50"
-                }`
-              }
-            >
-              <item.Icon />
-              {item.label}
-            </NavLink>
-          ))}
+          {NAV_ITEMS.map((item) =>
+            item.children ? (
+              <ExpandableNavItem key={item.to} item={item} currentPath={location.pathname} />
+            ) : (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.exact}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium ${
+                    isActive ? "bg-accent-light text-accent-dark" : "text-gray-600 hover:bg-gray-50"
+                  }`
+                }
+              >
+                <item.Icon />
+                {item.label}
+              </NavLink>
+            )
+          )}
           {user?.role === "admin" && (
             <NavLink
               to="/admin"
@@ -128,6 +136,69 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+    </div>
+  );
+}
+
+function ExpandableNavItem({ item, currentPath }) {
+  const childActive = item.children.some((c) => currentPath === c.to);
+  const [open, setOpen] = useState(childActive);
+
+  useEffect(() => {
+    if (childActive) setOpen(true);
+  }, [childActive]);
+
+  return (
+    <div>
+      <div className="flex items-center gap-0.5">
+        <NavLink
+          to={item.to}
+          className={({ isActive }) =>
+            `flex-1 flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium min-w-0 ${
+              isActive ? "bg-accent-light text-accent-dark" : "text-gray-600 hover:bg-gray-50"
+            }`
+          }
+        >
+          <item.Icon />
+          {item.label}
+        </NavLink>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="shrink-0 p-1.5 rounded-md hover:bg-gray-100 text-gray-400"
+          aria-label={open ? `Collapse ${item.label}` : `Expand ${item.label}`}
+          aria-expanded={open}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={`transition-transform ${open ? "rotate-180" : ""}`}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+      </div>
+      {open && (
+        <div className="mt-1 space-y-1 pl-4">
+          {item.children.map((child) => (
+            <NavLink
+              key={child.to}
+              to={child.to}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm font-medium ${
+                  isActive ? "bg-accent-light text-accent-dark" : "text-gray-500 hover:bg-gray-50"
+                }`
+              }
+            >
+              <child.Icon />
+              {child.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

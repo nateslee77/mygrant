@@ -15,6 +15,38 @@ const DEFAULT_CATEGORIES = [
   "Other",
 ];
 
+const ALL_TAB = "All";
+
+const STATUS_FILTERS = [
+  { key: "submitted", label: "Submitted" },
+  { key: "passed", label: "Passed" },
+  { key: "due_7", label: "Due in 7 Days" },
+  { key: "due_14", label: "Due in 14 Days" },
+  { key: "due_30", label: "Due in 1 Month" },
+];
+
+function projectMatchesStatus(project, statusFilter) {
+  if (!statusFilter) return true;
+  const today = new Date(new Date().toDateString());
+  return (project.due_dates || []).some((d) => {
+    const daysUntil = Math.ceil((new Date(d.due_date) - today) / 86400000);
+    switch (statusFilter) {
+      case "submitted":
+        return d.submitted;
+      case "passed":
+        return !d.submitted && daysUntil < 0;
+      case "due_7":
+        return !d.submitted && daysUntil >= 0 && daysUntil <= 7;
+      case "due_14":
+        return !d.submitted && daysUntil >= 0 && daysUntil <= 14;
+      case "due_30":
+        return !d.submitted && daysUntil >= 0 && daysUntil <= 30;
+      default:
+        return true;
+    }
+  });
+}
+
 const EMPTY_FORM = {
   project_name: "",
   category: DEFAULT_CATEGORIES[0],
@@ -122,15 +154,19 @@ export default function StatusReports() {
     return [...DEFAULT_CATEGORIES, ...extra];
   }, [items]);
 
-  const [tab, setTab] = useState(DEFAULT_CATEGORIES[0]);
+  const [tab, setTab] = useState(ALL_TAB);
   const [search, setSearch] = useState("");
   const [columnFilters, setColumnFilters] = useState({});
+  const [statusFilter, setStatusFilter] = useState(null);
   const activeFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
-  const hasActiveFilters = Boolean(search) || activeFilterCount > 0;
+  const hasActiveFilters = Boolean(search) || activeFilterCount > 0 || Boolean(statusFilter);
   const [sortKey, setSortKey] = useState("project_name");
   const [sortDir, setSortDir] = useState("asc");
 
-  const tabItems = useMemo(() => items.filter((p) => p.category === tab), [items, tab]);
+  const tabItems = useMemo(
+    () => (tab === ALL_TAB ? items : items.filter((p) => p.category === tab)),
+    [items, tab]
+  );
 
   const columnOptions = useMemo(() => {
     const uniq = (key) =>
@@ -152,13 +188,14 @@ export default function StatusReports() {
   }, [tabItems, search]);
 
   const filteredItems = useMemo(() => {
-    return searchedItems.filter((p) =>
-      Object.entries(columnFilters).every(([key, selected]) => {
+    return searchedItems.filter((p) => {
+      if (!projectMatchesStatus(p, statusFilter)) return false;
+      return Object.entries(columnFilters).every(([key, selected]) => {
         if (!selected || selected.length === 0) return true;
         return selected.includes(p[key]);
-      })
-    );
-  }, [searchedItems, columnFilters]);
+      });
+    });
+  }, [searchedItems, columnFilters, statusFilter]);
 
   const sortedItems = useMemo(() => {
     const copy = [...filteredItems];
@@ -201,11 +238,13 @@ export default function StatusReports() {
     setTab(cat);
     setColumnFilters({});
     setSearch("");
+    setStatusFilter(null);
   }
 
   function clearFilters() {
     setColumnFilters({});
     setSearch("");
+    setStatusFilter(null);
   }
 
   const [formOpen, setFormOpen] = useState(false);
@@ -271,7 +310,7 @@ export default function StatusReports() {
   });
 
   function openNewForm(category) {
-    const cat = category || tab;
+    const cat = category && category !== ALL_TAB ? category : DEFAULT_CATEGORIES[0];
     setForm({ ...EMPTY_FORM, category: cat, grantor: cat });
     setPendingDueDates([]);
     setNewPendingDueDate("");
@@ -322,6 +361,14 @@ export default function StatusReports() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-1 border-b border-gray-200 overflow-x-auto">
+        <button
+          onClick={() => switchTab(ALL_TAB)}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap ${
+            tab === ALL_TAB ? "border-accent text-accent-dark" : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          {ALL_TAB} <span className="text-xs text-gray-400">({items.length})</span>
+        </button>
         {allCategories.map((cat) => {
           const count = items.filter((p) => p.category === cat).length;
           return (
@@ -348,7 +395,7 @@ export default function StatusReports() {
       </div>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <input
             type="text"
             value={search}
@@ -356,6 +403,21 @@ export default function StatusReports() {
             placeholder="Search project, grantor, manager, AD number, notes…"
             className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
           />
+          <div className="flex items-center gap-1">
+            {STATUS_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setStatusFilter((prev) => (prev === f.key ? null : f.key))}
+                className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border ${
+                  statusFilter === f.key
+                    ? "bg-accent-light text-accent-dark border-accent"
+                    : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
           <span className="text-xs text-gray-500 whitespace-nowrap">{filteredItems.length} of {tabItems.length} projects</span>
           {hasActiveFilters && (
             <button onClick={clearFilters} className="text-xs text-accent hover:underline whitespace-nowrap">
