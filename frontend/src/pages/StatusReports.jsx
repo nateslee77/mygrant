@@ -175,6 +175,7 @@ export default function StatusReports() {
     return {
       grantor: uniq("grantor"),
       grant_manager: uniq("grant_manager"),
+      district: uniq("district").map(String),
     };
   }, [tabItems]);
 
@@ -193,7 +194,8 @@ export default function StatusReports() {
       if (!projectMatchesStatus(p, statusFilter)) return false;
       return Object.entries(columnFilters).every(([key, selected]) => {
         if (!selected || selected.length === 0) return true;
-        return selected.includes(p[key]);
+        const value = key === "district" ? String(p[key] ?? "") : p[key];
+        return selected.includes(value);
       });
     });
   }, [searchedItems, columnFilters, statusFilter]);
@@ -461,6 +463,14 @@ export default function StatusReports() {
                     onChange={(values) => setColumnFilter("grant_manager", values)}
                   />
                 </th>
+                <th className="px-5 py-2.5 font-medium whitespace-nowrap">
+                  District
+                  <ColumnFilterMenu
+                    options={columnOptions.district}
+                    selected={columnFilters.district || []}
+                    onChange={(values) => setColumnFilter("district", values)}
+                  />
+                </th>
                 <SortableHeader
                   label="Performance End Date"
                   sortKey="performance_end_date"
@@ -477,7 +487,7 @@ export default function StatusReports() {
             <tbody>
               {!isLoading && sortedItems.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-10 text-center text-gray-400">
+                  <td colSpan={9} className="px-5 py-10 text-center text-gray-400">
                     {tabItems.length === 0 ? "No projects in this category yet." : "No projects match these filters."}
                   </td>
                 </tr>
@@ -491,6 +501,7 @@ export default function StatusReports() {
                   <td className="px-5 py-2.5 font-medium text-[#1F2937] whitespace-nowrap">{p.project_name}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.grantor || "—"}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.grant_manager || "—"}</td>
+                  <td className="px-5 py-2.5 text-gray-600">{p.district ?? "—"}</td>
                   <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(p.performance_end_date)}</td>
                   <td className="px-5 py-2.5">
                     <DueBadge project={p} />

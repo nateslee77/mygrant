@@ -18,11 +18,32 @@ const TABS = [
   { label: "Closed", value: "Closed" },
 ];
 
-const EXPIRING_OPTIONS = [
-  { label: "Any time", value: "" },
-  { label: "Within 1 Month", value: "30" },
-  { label: "Within 6 Months", value: "180" },
+const EXPIRATION_FILTERS = [
+  { key: "expired", label: "Expired" },
+  { key: "exp_7", label: "Expiring in 7 Days" },
+  { key: "exp_14", label: "Expiring in 14 Days" },
+  { key: "exp_30", label: "Expiring in 1 Month" },
+  { key: "exp_180", label: "Expiring in 6 Months" },
 ];
+
+function grantMatchesExpiration(grant, filter) {
+  if (!filter) return true;
+  if (filter === "expired") return grant.is_expired;
+  if (grant.is_expired || !grant.current_exp_date) return false;
+  const daysUntil = Math.ceil((new Date(grant.current_exp_date) - new Date(new Date().toDateString())) / 86400000);
+  switch (filter) {
+    case "exp_7":
+      return daysUntil >= 0 && daysUntil <= 7;
+    case "exp_14":
+      return daysUntil >= 0 && daysUntil <= 14;
+    case "exp_30":
+      return daysUntil >= 0 && daysUntil <= 30;
+    case "exp_180":
+      return daysUntil >= 0 && daysUntil <= 180;
+    default:
+      return true;
+  }
+}
 
 // Columns that get a checkbox filter menu on their header (small, discrete value sets).
 const FILTERABLE_COLUMNS = new Set([
@@ -45,8 +66,7 @@ export default function AllGrants() {
 
   const [tab, setTab] = useState(null);
   const [search, setSearch] = useState("");
-  const [expiringWithin, setExpiringWithin] = useState("");
-  const [expiredOnly, setExpiredOnly] = useState(false);
+  const [expirationFilter, setExpirationFilter] = useState(null);
   const [columnFilters, setColumnFilters] = useState({}); // { [columnKey]: string[] of selected values }
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10); // number, or "all"
@@ -71,11 +91,10 @@ export default function AllGrants() {
     const activeTab = TABS.find((t) => t.value === tab);
     if (activeTab?.value) parts.push(`Status: ${activeTab.label}`);
     if (search) parts.push(`Search: "${search}"`);
-    if (expiringWithin) {
-      const opt = EXPIRING_OPTIONS.find((o) => o.value === expiringWithin);
-      if (opt) parts.push(`Expiring: ${opt.label}`);
+    if (expirationFilter) {
+      const opt = EXPIRATION_FILTERS.find((o) => o.key === expirationFilter);
+      if (opt) parts.push(opt.label);
     }
-    if (expiredOnly) parts.push("Expired only");
     Object.entries(columnFilters).forEach(([key, values]) => {
       if (!values || values.length === 0) return;
       const label = columns.find((c) => c.key === key)?.label || key;
@@ -104,14 +123,13 @@ export default function AllGrants() {
   }
 
   const activeColumnFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
-  const hasActiveFilters = Boolean(search || expiringWithin || expiredOnly || activeColumnFilterCount > 0);
+  const hasActiveFilters = Boolean(search || expirationFilter || activeColumnFilterCount > 0);
 
   const queryParams = {
     page: 1,
     page_size: PAGE_SIZE,
     ...(tab ? { status: tab } : {}),
     ...(search ? { search } : {}),
-    ...(expiringWithin ? { expiring_within: expiringWithin } : {}),
   };
 
   const { data, isLoading } = useQuery({
@@ -139,14 +157,14 @@ export default function AllGrants() {
   const filteredItems = useMemo(() => {
     const items = data?.items || [];
     return items.filter((g) => {
-      if (expiredOnly && !g.is_expired) return false;
+      if (!grantMatchesExpiration(g, expirationFilter)) return false;
       return Object.entries(columnFilters).every(([key, selected]) => {
         if (!selected || selected.length === 0) return true;
         const value = key === "district" ? String(g[key] ?? "") : g[key];
         return selected.includes(value);
       });
     });
-  }, [data, columnFilters, expiredOnly]);
+  }, [data, columnFilters, expirationFilter]);
 
   const sortedItems = useMemo(() => {
     const copy = [...filteredItems];
@@ -163,6 +181,11 @@ export default function AllGrants() {
     });
     return copy;
   }, [filteredItems, sortKey, sortDir]);
+
+  const totalAmount = useMemo(
+    () => sortedItems.reduce((sum, g) => sum + (g.grant_amount ? Number(g.grant_amount) : 0), 0),
+    [sortedItems]
+  );
 
   const effectiveRowsPerPage = rowsPerPage === "all" ? Math.max(sortedItems.length, 1) : rowsPerPage;
   const totalPages = Math.max(1, Math.ceil(sortedItems.length / effectiveRowsPerPage));
@@ -192,8 +215,7 @@ export default function AllGrants() {
 
   function clearFilters() {
     setSearch("");
-    setExpiringWithin("");
-    setExpiredOnly(false);
+    setExpirationFilter(null);
     setColumnFilters({});
     setPage(1);
   }
@@ -238,7 +260,11 @@ export default function AllGrants() {
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="text-xs text-gray-500">Total Amount</div>
+            <div className="text-lg font-semibold text-[#1F2937]">{formatCurrency(totalAmount)}</div>
+          </div>
           <div className="relative" ref={reportMenuRef}>
             <button
               onClick={() => setReportMenuOpen((o) => !o)}
@@ -299,7 +325,7 @@ export default function AllGrants() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <Field label="Search">
             <input
               type="text"
@@ -309,38 +335,31 @@ export default function AllGrants() {
               className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
             />
           </Field>
-          <Field label="Expiring">
-            <select
-              value={expiringWithin}
-              onChange={(e) => resetToPageOne(setExpiringWithin)(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
-            >
-              {EXPIRING_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Expired">
-            <button
-              type="button"
-              onClick={() => resetToPageOne(setExpiredOnly)(!expiredOnly)}
-              className={`w-full px-3 py-1.5 rounded-md text-sm font-medium border text-left ${
-                expiredOnly
-                  ? "bg-amber-100 text-amber-700 border-amber-300"
-                  : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              {expiredOnly ? "Showing expired only" : "Show expired only"}
-            </button>
-          </Field>
           <div className="flex items-end">
             <p className="text-xs text-gray-400">
               Tip: click the ▼ icon on a column header (e.g. Grants Manager) to filter by specific values.
             </p>
           </div>
         </div>
+
+        <Field label="Expiration">
+          <div className="flex flex-wrap gap-1">
+            {EXPIRATION_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => resetToPageOne(setExpirationFilter)(expirationFilter === f.key ? null : f.key)}
+                className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border ${
+                  expirationFilter === f.key
+                    ? "bg-amber-100 text-amber-700 border-amber-300"
+                    : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </Field>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
