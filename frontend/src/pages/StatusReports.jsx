@@ -129,7 +129,7 @@ function DueBadge({ project }) {
 
 function SortableHeader({ label, sortKey, currentSortKey, sortDir, onSort, extra }) {
   return (
-    <th className="px-5 py-2.5 font-medium whitespace-nowrap">
+    <th className="px-3 py-2.5 font-medium">
       <span className="cursor-pointer select-none" onClick={() => onSort(sortKey)}>
         {label} {currentSortKey === sortKey && (sortDir === "asc" ? "▲" : "▼")}
       </span>
@@ -443,11 +443,21 @@ export default function StatusReports() {
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
+            <colgroup>
+              <col className="w-[18%]" />
+              <col className="w-[12%]" />
+              <col className="w-[11%]" />
+              <col className="w-[6%]" />
+              <col className="w-[10%]" />
+              <col className="w-[14%]" />
+              <col className="w-[17%]" />
+              <col className="w-[12%]" />
+            </colgroup>
             <thead>
               <tr className="text-left text-xs text-gray-500 border-b border-gray-100 bg-gray-50">
                 <SortableHeader label="Project Name" sortKey="project_name" currentSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                <th className="px-5 py-2.5 font-medium whitespace-nowrap">
+                <th className="px-3 py-2.5 font-medium">
                   Grantor
                   <ColumnFilterMenu
                     options={columnOptions.grantor}
@@ -455,7 +465,7 @@ export default function StatusReports() {
                     onChange={(values) => setColumnFilter("grantor", values)}
                   />
                 </th>
-                <th className="px-5 py-2.5 font-medium whitespace-nowrap">
+                <th className="px-3 py-2.5 font-medium">
                   Grant Manager
                   <ColumnFilterMenu
                     options={columnOptions.grant_manager}
@@ -463,7 +473,7 @@ export default function StatusReports() {
                     onChange={(values) => setColumnFilter("grant_manager", values)}
                   />
                 </th>
-                <th className="px-5 py-2.5 font-medium whitespace-nowrap">
+                <th className="px-3 py-2.5 font-medium">
                   District
                   <ColumnFilterMenu
                     options={columnOptions.district}
@@ -472,22 +482,21 @@ export default function StatusReports() {
                   />
                 </th>
                 <SortableHeader
-                  label="Performance End Date"
+                  label="Performance End"
                   sortKey="performance_end_date"
                   currentSortKey={sortKey}
                   sortDir={sortDir}
                   onSort={handleSort}
                 />
                 <SortableHeader label="PSR Due Date(s)" sortKey="next_due" currentSortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                <th className="px-5 py-2.5 font-medium">Notes</th>
-                <th className="px-5 py-2.5 font-medium">Link</th>
-                <th className="px-5 py-2.5 font-medium">Actions</th>
+                <th className="px-3 py-2.5 font-medium">Notes</th>
+                <th className="px-3 py-2.5 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {!isLoading && sortedItems.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-5 py-10 text-center text-gray-400">
+                  <td colSpan={8} className="px-3 py-10 text-center text-gray-400">
                     {tabItems.length === 0 ? "No projects in this category yet." : "No projects match these filters."}
                   </td>
                 </tr>
@@ -496,31 +505,31 @@ export default function StatusReports() {
                 <tr
                   key={p.id}
                   onClick={() => setEditProject(p)}
-                  className="border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer"
+                  className="border-b border-gray-50 last:border-0 hover:bg-gray-50 cursor-pointer align-top"
                 >
-                  <td className="px-5 py-2.5 font-medium text-[#1F2937] whitespace-nowrap">{p.project_name}</td>
-                  <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.grantor || "—"}</td>
-                  <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{p.grant_manager || "—"}</td>
-                  <td className="px-5 py-2.5 text-gray-600">{p.district ?? "—"}</td>
-                  <td className="px-5 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(p.performance_end_date)}</td>
-                  <td className="px-5 py-2.5">
+                  <td className="px-3 py-2.5 font-medium text-[#1F2937] break-words">{p.project_name}</td>
+                  <td className="px-3 py-2.5 text-gray-600 break-words">{p.grantor || "—"}</td>
+                  <td className="px-3 py-2.5 text-gray-600 break-words">{p.grant_manager || "—"}</td>
+                  <td className="px-3 py-2.5 text-gray-600">{p.district ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-gray-600">{formatDate(p.performance_end_date)}</td>
+                  <td className="px-3 py-2.5">
                     <DueBadge project={p} />
                   </td>
-                  <td className="px-5 py-2.5 text-sm max-w-xs">
+                  <td className="px-3 py-2.5 text-sm break-words">
                     <NotesCell project={p} />
                   </td>
-                  <td className="px-5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    {p.link ? <OpenLinkButton url={p.link} /> : <span className="text-gray-400">—</span>}
-                  </td>
-                  <td className="px-5 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => setEditProject(p)} className="text-accent hover:underline text-sm mr-3">
-                      Edit
-                    </button>
-                    {isAdmin && (
-                      <button onClick={() => setDeleteTarget(p)} className="text-status-withdrawn hover:underline text-sm">
-                        Delete
+                  <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {p.link && <OpenLinkButton url={p.link} />}
+                      <button onClick={() => setEditProject(p)} className="text-accent hover:underline text-sm">
+                        Edit
                       </button>
-                    )}
+                      {isAdmin && (
+                        <button onClick={() => setDeleteTarget(p)} className="text-status-withdrawn hover:underline text-sm">
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
