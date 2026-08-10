@@ -2,7 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ColumnFilterMenu from "../components/ColumnFilterMenu";
+import ExpiredBadge from "../components/ExpiredBadge";
 import OpenLinkButton from "../components/OpenLinkButton";
+import Spinner from "../components/Spinner";
 import StatusPill from "../components/StatusPill";
 import StickyHorizontalScrollbar from "../components/StickyHorizontalScrollbar";
 import { useAuth } from "../context/AuthContext";
@@ -52,6 +54,7 @@ export default function AllGrants() {
   const scrollContainerRef = useRef(null);
 
   const [reportMenuOpen, setReportMenuOpen] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState(null); // null | "full" | "summary"
   const reportMenuRef = useRef(null);
 
   useEffect(() => {
@@ -62,13 +65,40 @@ export default function AllGrants() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  function buildFiltersDescription() {
+    const parts = [];
+    const activeTab = TABS.find((t) => t.value === tab);
+    if (activeTab?.value) parts.push(`Status: ${activeTab.label}`);
+    if (search) parts.push(`Search: "${search}"`);
+    if (expiringWithin) {
+      const opt = EXPIRING_OPTIONS.find((o) => o.value === expiringWithin);
+      if (opt) parts.push(`Expiring: ${opt.label}`);
+    }
+    Object.entries(columnFilters).forEach(([key, values]) => {
+      if (!values || values.length === 0) return;
+      const label = columns.find((c) => c.key === key)?.label || key;
+      parts.push(`${label}: ${values.join(", ")}`);
+    });
+    return parts.join("; ");
+  }
+
   async function handleDownloadReport(reportType) {
     setReportMenuOpen(false);
-    await downloadFile("/grants/report/pdf", {
-      params: { report_type: reportType },
-      fallbackFilename: `grants_${reportType}_report.pdf`,
-      mimeType: "application/pdf",
-    });
+    setDownloadingReport(reportType);
+    try {
+      await downloadFile("/grants/report/pdf", {
+        method: "post",
+        data: {
+          report_type: reportType,
+          grant_ids: sortedItems.map((g) => g.id),
+          filters_description: buildFiltersDescription() || null,
+        },
+        fallbackFilename: `grants_${reportType}_report.pdf`,
+        mimeType: "application/pdf",
+      });
+    } finally {
+      setDownloadingReport(null);
+    }
   }
 
   const activeColumnFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
@@ -171,8 +201,8 @@ export default function AllGrants() {
     { key: "funding_source", label: "Funding Source" },
     { key: "grant_officer", label: "Grant Officer" },
     { key: "district", label: "District" },
-    { key: "orig_exp_date", label: "Orig Exp Date" },
     { key: "current_exp_date", label: "Current Exp Date" },
+    { key: "orig_exp_date", label: "Orig Exp Date" },
     { key: "amended_exp_date", label: "Amended Exp Date" },
     { key: "grant_amount", label: "Grant Amount" },
     { key: "grants_manager", label: "Grants Manager" },
@@ -208,20 +238,24 @@ export default function AllGrants() {
           <div className="relative" ref={reportMenuRef}>
             <button
               onClick={() => setReportMenuOpen((o) => !o)}
-              className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md inline-flex items-center gap-1.5"
+              disabled={!!downloadingReport}
+              className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md inline-flex items-center gap-1.5 disabled:opacity-60"
             >
-              Download Report
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className={`transition-transform ${reportMenuOpen ? "rotate-180" : ""}`}
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
+              {downloadingReport && <Spinner className="w-3.5 h-3.5" />}
+              {downloadingReport ? "Downloading…" : "Download Report"}
+              {!downloadingReport && (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className={`transition-transform ${reportMenuOpen ? "rotate-180" : ""}`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              )}
             </button>
             {reportMenuOpen && (
               <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
@@ -340,14 +374,17 @@ export default function AllGrants() {
                     {g.project_name}
                   </td>
                   <td className="px-4 py-2.5">
-                    <StatusPill status={g.status} />
+                    <div className="flex items-center gap-1.5">
+                      <StatusPill status={g.status} />
+                      {g.is_expired && <ExpiredBadge />}
+                    </div>
                   </td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{g.grantor || "—"}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{g.funding_source || "—"}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{g.grant_officer || "—"}</td>
                   <td className="px-4 py-2.5 text-gray-600">{g.district ?? "—"}</td>
-                  <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(g.orig_exp_date)}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(g.current_exp_date)}</td>
+                  <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(g.orig_exp_date)}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatDate(g.amended_exp_date)}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{formatCurrency(g.grant_amount)}</td>
                   <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap">{g.grants_manager || "—"}</td>

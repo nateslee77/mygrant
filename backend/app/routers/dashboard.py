@@ -12,7 +12,11 @@ from app.schemas.dashboard import DashboardStats
 from app.schemas.grant import ExpiringGrantItem
 from app.schemas.psr import PSRDueSoonItem
 from app.services.grant_status import compute_status
-from app.services.notifications import check_and_notify_expiring_grants, check_and_notify_psr_due_dates
+from app.services.notifications import (
+    check_and_notify_expired_grants,
+    check_and_notify_expiring_grants,
+    check_and_notify_psr_due_dates,
+)
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -20,6 +24,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 @router.get("/stats", response_model=DashboardStats)
 def get_stats(db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
     check_and_notify_expiring_grants(db)
+    check_and_notify_expired_grants(db)
     check_and_notify_psr_due_dates(db)
     db.commit()
 

@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.models import Grant, GrantAward, PSRDueDate, PSRProject
+from app.models.models import Grant, GrantAward, MonthlyReportNote, PSRDueDate, PSRProject
 
 MONTH_LABEL_FMT = "%B %Y"
 _MONTH_RE = re.compile(r"(\d{4})-(\d{2})")
@@ -69,6 +69,13 @@ def fetch_monthly_report(db: Session, year: int, month: int) -> dict:
         .order_by(Grant.current_exp_date.asc())
     ).all()
 
+    month_str = f"{year:04d}-{month:02d}"
+    notes = db.scalars(
+        select(MonthlyReportNote)
+        .where(MonthlyReportNote.month == month_str)
+        .order_by(MonthlyReportNote.created_at.asc())
+    ).all()
+
     def _psr_item(due: PSRDueDate, project: PSRProject) -> dict:
         return {
             "due_date_id": due.id,
@@ -84,7 +91,7 @@ def fetch_monthly_report(db: Session, year: int, month: int) -> dict:
     grants_awarded_amount = sum((a.amount for a in grants_awarded if a.amount is not None), Decimal("0"))
 
     return {
-        "month": f"{year:04d}-{month:02d}",
+        "month": month_str,
         "month_label": date(year, month, 1).strftime(MONTH_LABEL_FMT),
         "psr_submitted": [_psr_item(d, p) for d, p in psr_submitted_rows],
         "grants_awarded": list(grants_awarded),
@@ -100,6 +107,7 @@ def fetch_monthly_report(db: Session, year: int, month: int) -> dict:
             for p in psr_performance_ending
         ],
         "grants_expiring": list(grants_expiring),
+        "notes": list(notes),
         "psr_submitted_count": len(psr_submitted_rows),
         "grants_awarded_count": len(grants_awarded),
         "grants_awarded_amount": grants_awarded_amount,
@@ -209,6 +217,17 @@ def render_monthly_report_docx(data: dict, generated_by_name: str) -> bytes:
         ],
         "No grants expiring this month.",
     )
+
+    document.add_heading("Notes", level=1)
+    if data["notes"]:
+        for note in data["notes"]:
+            p = document.add_paragraph()
+            author_run = p.add_run(f"{note.author_name} — {note.created_at.strftime('%m/%d/%Y')}: ")
+            author_run.bold = True
+            p.add_run(note.note_text)
+    else:
+        empty = document.add_paragraph("No notes for this month.")
+        empty.runs[0].italic = True
 
     footer = document.add_paragraph(f"Generated on {date.today().strftime('%m/%d/%Y')} by {generated_by_name}.")
     footer.runs[0].italic = True

@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -47,6 +47,22 @@ class MonthlyReportExpiringGrantItem(BaseModel):
         from_attributes = True
 
 
+class MonthlyReportNoteCreate(BaseModel):
+    note_text: str
+
+
+class MonthlyReportNoteOut(BaseModel):
+    id: uuid.UUID
+    month: str
+    user_id: uuid.UUID | None
+    author_name: str
+    note_text: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class MonthlyReportResponse(BaseModel):
     month: str
     month_label: str
@@ -56,6 +72,7 @@ class MonthlyReportResponse(BaseModel):
     psr_due: list[MonthlyReportPSRItem]
     psr_performance_ending: list[MonthlyReportPerformanceEndingItem]
     grants_expiring: list[MonthlyReportExpiringGrantItem]
+    notes: list[MonthlyReportNoteOut]
 
     psr_submitted_count: int
     grants_awarded_count: int

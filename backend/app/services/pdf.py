@@ -64,7 +64,9 @@ def build_grant_awards_report_filename() -> str:
     return f"grants_awarded_report_{date.today().isoformat()}.pdf"
 
 
-def render_grants_report_pdf(grants: list[Grant], report_type: str, generated_by_name: str) -> bytes:
+def render_grants_report_pdf(
+    grants: list[Grant], report_type: str, generated_by_name: str, filters_description: str | None = None
+) -> bytes:
     from weasyprint import HTML  # imported lazily: see note in render_grant_pdf above.
 
     template = _env.get_template("grants_report.html")
@@ -85,6 +87,7 @@ def render_grants_report_pdf(grants: list[Grant], report_type: str, generated_by
 
         html_content = template.render(
             report_type="summary",
+            filters_description=filters_description,
             active_count=len(active_rows),
             closed_count=closed_count,
             active_total_display=f"${active_total:,.2f}",
@@ -96,11 +99,14 @@ def render_grants_report_pdf(grants: list[Grant], report_type: str, generated_by
             generated_by=generated_by_name,
         )
     else:
-        full_rows = sorted(rows, key=lambda gs: (gs[0].project_name or "").lower())
+        sorted_rows = sorted(rows, key=lambda gs: (gs[0].project_name or "").lower())
+        total_amount = sum((g.grant_amount for g, _ in sorted_rows if g.grant_amount is not None), Decimal("0"))
         html_content = template.render(
             report_type="full",
-            rows=full_rows,
-            total_count=len(full_rows),
+            filters_description=filters_description,
+            rows=sorted_rows,
+            total_count=len(sorted_rows),
+            total_amount_display=f"${total_amount:,.2f}",
             generated_date=date.today().strftime("%m/%d/%Y"),
             generated_by=generated_by_name,
         )

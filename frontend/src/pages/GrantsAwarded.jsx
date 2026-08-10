@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import Modal from "../components/Modal";
+import Spinner from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { downloadFile } from "../lib/download";
@@ -25,6 +26,7 @@ export default function GrantsAwarded() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [downloadingReport, setDownloadingReport] = useState(false);
 
   const saveAward = useMutation({
     mutationFn: async (payload) => {
@@ -92,10 +94,15 @@ export default function GrantsAwarded() {
   }
 
   async function handleDownloadReport() {
-    await downloadFile("/grant-awards/report/pdf", {
-      fallbackFilename: "grants_awarded_report.pdf",
-      mimeType: "application/pdf",
-    });
+    setDownloadingReport(true);
+    try {
+      await downloadFile("/grant-awards/report/pdf", {
+        fallbackFilename: "grants_awarded_report.pdf",
+        mimeType: "application/pdf",
+      });
+    } finally {
+      setDownloadingReport(false);
+    }
   }
 
   return (
@@ -114,9 +121,11 @@ export default function GrantsAwarded() {
       <div className="flex items-center justify-end gap-3">
         <button
           onClick={handleDownloadReport}
-          className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md"
+          disabled={downloadingReport}
+          className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md disabled:opacity-60 inline-flex items-center gap-1.5"
         >
-          Download Report (PDF)
+          {downloadingReport && <Spinner className="w-3.5 h-3.5" />}
+          {downloadingReport ? "Downloading…" : "Download Report (PDF)"}
         </button>
         {canEdit && (
           <button

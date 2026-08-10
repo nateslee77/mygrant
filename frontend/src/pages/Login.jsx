@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Spinner from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
@@ -59,11 +60,16 @@ export default function Login() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-accent hover:bg-accent-dark text-white text-sm font-medium py-2 rounded-md disabled:opacity-60"
+            className="w-full bg-accent hover:bg-accent-dark text-white text-sm font-medium py-2 rounded-md disabled:opacity-60 inline-flex items-center justify-center gap-2"
           >
+            {submitting && <Spinner className="w-4 h-4" />}
             {submitting ? "Logging in…" : "Log In"}
           </button>
         </form>
+
+        <p className="mt-4 text-xs text-gray-400 text-center">
+          If this is the first visit in a while, please allow up to a minute for the server to wake up.
+        </p>
       </div>
     </div>
   );

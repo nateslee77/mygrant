@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import Spinner from "../components/Spinner";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { downloadFile } from "../lib/download";
 import { formatCurrency, formatDate } from "../lib/format";
@@ -58,7 +60,13 @@ function ReportTable({ title, columns, rows, emptyMessage }) {
 }
 
 export default function MonthlyReport() {
+  const { user } = useAuth();
+  const canEdit = user?.role === "admin" || user?.role === "editor";
+  const queryClient = useQueryClient();
+
   const [month, setMonth] = useState(currentMonth());
+  const [downloading, setDownloading] = useState(null); // null | "pdf" | "docx"
+  const [noteText, setNoteText] = useState("");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["monthly-report", month],
@@ -66,15 +74,35 @@ export default function MonthlyReport() {
     enabled: !!month,
   });
 
+  const addNote = useMutation({
+    mutationFn: async () => (await api.post("/monthly-report/notes", { note_text: noteText }, { params: { month } })).data,
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["monthly-report", month], updated);
+      setNoteText("");
+    },
+  });
+
+  const deleteNote = useMutation({
+    mutationFn: async (noteId) => (await api.delete(`/monthly-report/notes/${noteId}`)).data,
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["monthly-report", month], updated);
+    },
+  });
+
   async function handleDownload(format) {
-    await downloadFile(`/monthly-report/${format}`, {
-      params: { month },
-      fallbackFilename: `monthly_report_${month}.${format}`,
-      mimeType:
-        format === "pdf"
-          ? "application/pdf"
-          : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    });
+    setDownloading(format);
+    try {
+      await downloadFile(`/monthly-report/${format}`, {
+        params: { month },
+        fallbackFilename: `monthly_report_${month}.${format}`,
+        mimeType:
+          format === "pdf"
+            ? "application/pdf"
+            : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+    } finally {
+      setDownloading(null);
+    }
   }
 
   const psrSubmitted = data?.psr_submitted || [];
@@ -82,6 +110,7 @@ export default function MonthlyReport() {
   const psrDue = data?.psr_due || [];
   const psrPerformanceEnding = data?.psr_performance_ending || [];
   const grantsExpiring = data?.grants_expiring || [];
+  const notes = data?.notes || [];
 
   return (
     <div className="space-y-4">
@@ -98,17 +127,19 @@ export default function MonthlyReport() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => handleDownload("pdf")}
-            disabled={!data}
-            className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md disabled:opacity-50"
+            disabled={!data || !!downloading}
+            className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md disabled:opacity-50 inline-flex items-center gap-1.5"
           >
-            Download Report (PDF)
+            {downloading === "pdf" && <Spinner className="w-3.5 h-3.5" />}
+            {downloading === "pdf" ? "Downloading…" : "Download Report (PDF)"}
           </button>
           <button
             onClick={() => handleDownload("docx")}
-            disabled={!data}
-            className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md disabled:opacity-50"
+            disabled={!data || !!downloading}
+            className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md disabled:opacity-50 inline-flex items-center gap-1.5"
           >
-            Download Report (Word)
+            {downloading === "docx" && <Spinner className="w-3.5 h-3.5" />}
+            {downloading === "docx" ? "Downloading…" : "Download Report (Word)"}
           </button>
         </div>
       </div>
@@ -185,6 +216,49 @@ export default function MonthlyReport() {
             ]}
             rows={grantsExpiring}
           />
+
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h2 className="font-medium text-[#1F2937] mb-3">Notes</h2>
+            <div className="space-y-2 mb-3">
+              {notes.length === 0 && <p className="text-sm text-gray-400">No notes for this month yet.</p>}
+              {notes.map((n) => (
+                <div key={n.id} className="border-b border-gray-50 pb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-xs text-gray-400">
+                      {n.author_name} — {new Date(n.created_at).toLocaleDateString()}
+                    </div>
+                    <div className="text-sm text-[#1F2937] whitespace-pre-wrap">{n.note_text}</div>
+                  </div>
+                  {canEdit && (
+                    <button
+                      onClick={() => deleteNote.mutate(n.id)}
+                      className="shrink-0 text-xs text-status-withdrawn hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {canEdit && (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="Add a note for this month…"
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                />
+                <button
+                  onClick={() => noteText.trim() && addNote.mutate()}
+                  disabled={!noteText.trim() || addNote.isPending}
+                  className="bg-accent hover:bg-accent-dark text-white text-sm font-medium px-3 py-1.5 rounded-md disabled:opacity-60"
+                >
+                  Add Note
+                </button>
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>

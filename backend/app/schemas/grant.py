@@ -52,6 +52,7 @@ class SharePointLinkUpdate(BaseModel):
 class GrantOut(GrantBase):
     id: uuid.UUID
     status: str
+    is_expired: bool
     created_at: datetime
     updated_at: datetime
 
@@ -67,6 +68,7 @@ class GrantListItem(BaseModel):
     grant_officer: str | None
     scope: str | None
     status: str
+    is_expired: bool
     district: int | None
     orig_exp_date: date | None
     current_exp_date: date | None
@@ -85,6 +87,18 @@ class GrantListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class GrantsReportRequest(BaseModel):
+    report_type: Literal["full", "summary"] = "full"
+    # The exact set of grants currently visible on the All Grants page (after its
+    # client-side tab/search/column filters), so the report matches what's on
+    # screen rather than re-deriving filter logic server-side. None = all grants.
+    grant_ids: list[uuid.UUID] | None = None
+    # Human-readable summary of whatever filters produced grant_ids (e.g.
+    # "Status: Active; Grantor: State of California"), printed on the report
+    # so readers know its scope. None/blank = no filters applied.
+    filters_description: str | None = None
 
 
 class ExpiringGrantItem(BaseModel):

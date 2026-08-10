@@ -32,6 +32,8 @@ const ACTION_LABELS = {
   deleted_psr_due_date: "Deleted PSR due date",
   added_psr_note: "Added status report note",
   deleted_psr_note: "Deleted status report note",
+  added_monthly_report_note: "Added monthly report note",
+  deleted_monthly_report_note: "Deleted monthly report note",
   invited_user: "Invited user",
   resent_invite: "Resent invite",
   changed_role: "Changed user role",
@@ -129,11 +131,13 @@ function describeEntry(entry) {
   }
 
   if (
-    ["added_note", "deleted_note", "restored_note", "added_psr_note", "deleted_psr_note"].includes(entry.action) &&
+    ["added_note", "deleted_note", "restored_note", "added_psr_note", "deleted_psr_note", "added_monthly_report_note", "deleted_monthly_report_note"].includes(
+      entry.action
+    ) &&
     detail.note_text
   ) {
     const text = detail.note_text.length > 100 ? `${detail.note_text.slice(0, 100)}…` : detail.note_text;
-    return { label, subject, changes: [{ field: "Note", after: `"${text}"` }] };
+    return { label, subject: subject || detail.month, changes: [{ field: "Note", after: `"${text}"` }] };
   }
 
   if (["added_psr_due_date", "deleted_psr_due_date"].includes(entry.action) && detail.due_date) {

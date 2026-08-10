@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import ExpiredBadge from "../components/ExpiredBadge";
 import InlineEditField from "../components/InlineEditField";
 import Modal from "../components/Modal";
 import StatusPill from "../components/StatusPill";
@@ -109,6 +110,7 @@ export default function GrantDetail() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold text-[#1F2937]">{grant.project_name}</h1>
             <StatusPill status={grant.status} />
+            {grant.is_expired && <ExpiredBadge />}
             {grant.district !== null && (
               <span className="text-xs font-medium text-gray-500 bg-gray-100 rounded-full px-2.5 py-1 whitespace-nowrap">
                 District {grant.district}

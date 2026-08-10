@@ -16,11 +16,12 @@ from app.schemas.grant import (
     GrantNoteCreate,
     GrantNoteOut,
     GrantOut,
+    GrantsReportRequest,
     GrantUpdate,
     SharePointLinkUpdate,
 )
 from app.services.audit import write_audit_log
-from app.services.grant_status import compute_status
+from app.services.grant_status import compute_status, is_expired
 from app.services.pdf import build_grants_report_filename, build_snapshot_filename, render_grant_pdf, render_grants_report_pdf
 
 router = APIRouter(prefix="/grants", tags=["grants"])
@@ -42,6 +43,7 @@ def _to_list_item(grant: Grant) -> GrantListItem:
         grant_officer=grant.grant_officer,
         scope=grant.scope,
         status=compute_status(grant),
+        is_expired=is_expired(grant),
         district=grant.district,
         orig_exp_date=grant.orig_exp_date,
         current_exp_date=grant.current_exp_date,
@@ -59,6 +61,7 @@ def _to_out(grant: Grant) -> GrantOut:
         **base.model_dump(),
         id=grant.id,
         status=compute_status(grant),
+        is_expired=is_expired(grant),
         created_at=grant.created_at,
         updated_at=grant.updated_at,
     )
@@ -115,18 +118,19 @@ def list_grants(
     )
 
 
-@router.get("/report/pdf")
+@router.post("/report/pdf")
 def download_grants_report(
-    report_type: str = Query(default="full"),
+    payload: GrantsReportRequest,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if report_type not in ("full", "summary"):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "report_type must be 'full' or 'summary'")
+    query = select(Grant)
+    if payload.grant_ids is not None:
+        query = query.where(Grant.id.in_(payload.grant_ids)) if payload.grant_ids else query.where(False)
+    grants = db.scalars(query).all()
 
-    grants = db.scalars(select(Grant)).all()
-    pdf_bytes = render_grants_report_pdf(grants, report_type, user.name)
-    filename = build_grants_report_filename(report_type)
+    pdf_bytes = render_grants_report_pdf(grants, payload.report_type, user.name, payload.filters_description)
+    filename = build_grants_report_filename(payload.report_type)
 
     return Response(
         content=pdf_bytes,

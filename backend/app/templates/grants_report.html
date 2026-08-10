@@ -20,6 +20,7 @@
   .status-active { background-color: #DCFCE7; color: #16A34A; }
   .status-closed { background-color: #F3F4F6; color: #6B7280; }
   .status-withdrawn { background-color: #FEE2E2; color: #DC2626; }
+  .filters-note { color: #6B7280; font-size: 9pt; margin-bottom: 12px; font-style: italic; }
   .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 9pt; }
 </style>
 </head>
@@ -27,6 +28,9 @@
 
   <h1>{{ "All Grants — Full Report" if report_type == "full" else "All Grants — Summary Report" }}</h1>
   <div class="subheader">LA County Parks &amp; Recreation Grants Management System</div>
+  {% if filters_description %}
+  <div class="filters-note">Filters applied: {{ filters_description }}</div>
+  {% endif %}
 
   {% if report_type == "summary" %}
   <div class="summary">
@@ -66,6 +70,10 @@
     <div class="summary-box">
       <div class="summary-label">Total Grants</div>
       <div class="summary-value">{{ total_count }}</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-label">Total Amount</div>
+      <div class="summary-value">{{ total_amount_display }}</div>
     </div>
   </div>
 

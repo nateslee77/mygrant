@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.models import Grant, Notification, PSRDueDate, PSRProject, User
@@ -62,6 +62,48 @@ def check_and_notify_expiring_grants(db: Session) -> None:
             continue
         message = f"{grant.project_name} is expiring on {grant.current_exp_date.isoformat()}"
         notify_users(db, user_ids=recipient_ids, grant_id=grant.id, type_="grant_expiring", message=message)
+
+
+def check_and_notify_expired_grants(db: Session) -> None:
+    """Run as a cheap check on relevant reads. Grants no longer auto-close
+    when current_exp_date passes -- they stay Active until someone
+    explicitly closes them. This sends one 'grant_expired' notification per
+    active user, the first time a grant crosses its expiration date while
+    still open, so it doesn't just sit there unnoticed."""
+    today = date.today()
+
+    candidate_grants = db.scalars(
+        select(Grant).where(
+            Grant.withdrawn.is_(False),
+            or_(Grant.status_override.is_(None), Grant.status_override != "closed"),
+            Grant.current_exp_date.isnot(None),
+            Grant.current_exp_date < today,
+        )
+    ).all()
+
+    if not candidate_grants:
+        return
+
+    already_notified_grant_ids = set(
+        db.scalars(
+            select(Notification.grant_id).where(
+                Notification.type == "grant_expired",
+                Notification.grant_id.in_([g.id for g in candidate_grants]),
+            )
+        ).all()
+    )
+
+    recipient_ids = db.scalars(
+        select(User.id).where(User.status == "active", User.role.in_(("admin", "editor")))
+    ).all()
+    if not recipient_ids:
+        return
+
+    for grant in candidate_grants:
+        if grant.id in already_notified_grant_ids:
+            continue
+        message = f"{grant.project_name} reached its expiration date ({grant.current_exp_date.isoformat()}) and is still open"
+        notify_users(db, user_ids=recipient_ids, grant_id=grant.id, type_="grant_expired", message=message)
 
 
 def check_and_notify_psr_due_dates(db: Session) -> None:

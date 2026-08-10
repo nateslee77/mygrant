@@ -17,6 +17,8 @@
   table.report td { padding: 6px 8px; border-bottom: 1px solid #F3F4F6; vertical-align: top; }
   table.report tr:nth-child(even) td { background-color: #FAFAFA; }
   .section { page-break-inside: avoid; }
+  .note-item { margin-bottom: 6px; }
+  .note-meta { font-weight: 600; }
   .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 9pt; }
 </style>
 </head>
@@ -150,6 +152,20 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <div class="section">
+    <h2>Notes</h2>
+    {% if notes %}
+      {% for n in notes %}
+      <div class="note-item">
+        <span class="note-meta">{{ n.author_name }} — {{ n.created_at.strftime("%m/%d/%Y") }}:</span>
+        {{ n.note_text }}
+      </div>
+      {% endfor %}
+    {% else %}
+    <p>No notes for this month.</p>
+    {% endif %}
   </div>
 
   <div class="footer">

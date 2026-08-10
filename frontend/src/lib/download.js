@@ -1,7 +1,7 @@
 import { api } from "./api";
 
-export async function downloadFile(url, { params, fallbackFilename, mimeType } = {}) {
-  const response = await api.get(url, { params, responseType: "blob" });
+export async function downloadFile(url, { method = "get", params, data, fallbackFilename, mimeType } = {}) {
+  const response = await api.request({ url, method, params, data, responseType: "blob" });
   const disposition = response.headers["content-disposition"] || "";
   const match = disposition.match(/filename="?([^"]+)"?/);
   const filename = match ? match[1] : fallbackFilename;
