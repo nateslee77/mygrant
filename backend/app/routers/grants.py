@@ -127,7 +127,15 @@ def download_grants_report(
     query = select(Grant)
     if payload.grant_ids is not None:
         query = query.where(Grant.id.in_(payload.grant_ids)) if payload.grant_ids else query.where(False)
+    else:
+        query = query.order_by(Grant.project_name.asc())
     grants = db.scalars(query).all()
+
+    # `id IN (...)` doesn't preserve list order -- re-order to match grant_ids exactly,
+    # so the report reflects whatever sort was applied on the All Grants page.
+    if payload.grant_ids:
+        order = {gid: i for i, gid in enumerate(payload.grant_ids)}
+        grants = sorted(grants, key=lambda g: order.get(g.id, len(order)))
 
     pdf_bytes = render_grants_report_pdf(grants, payload.report_type, user.name, payload.filters_description)
     filename = build_grants_report_filename(payload.report_type)

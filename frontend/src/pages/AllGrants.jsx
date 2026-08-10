@@ -100,6 +100,8 @@ export default function AllGrants() {
       const label = columns.find((c) => c.key === key)?.label || key;
       parts.push(`${label}: ${values.join(", ")}`);
     });
+    const sortLabel = columns.find((c) => c.key === sortKey)?.label || sortKey;
+    parts.push(`Sorted by: ${sortLabel} (${sortDir === "asc" ? "ascending" : "descending"})`);
     return parts.join("; ");
   }
 
@@ -123,7 +125,7 @@ export default function AllGrants() {
   }
 
   const activeColumnFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
-  const hasActiveFilters = Boolean(search || expirationFilter || activeColumnFilterCount > 0);
+  const hasActiveFilters = Boolean(search || expirationFilter || activeColumnFilterCount > 0 || tab !== "Active");
 
   const queryParams = {
     page: 1,
@@ -214,6 +216,7 @@ export default function AllGrants() {
   }
 
   function clearFilters() {
+    setTab("Active");
     setSearch("");
     setExpirationFilter(null);
     setColumnFilters({});

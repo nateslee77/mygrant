@@ -99,13 +99,16 @@ def render_grants_report_pdf(
             generated_by=generated_by_name,
         )
     else:
-        sorted_rows = sorted(rows, key=lambda gs: (gs[0].project_name or "").lower())
-        total_amount = sum((g.grant_amount for g, _ in sorted_rows if g.grant_amount is not None), Decimal("0"))
+        # `rows` arrives pre-ordered by the caller (grants.py preserves the requested
+        # grant_ids order, which mirrors whatever sort was applied on the All Grants
+        # page, or falls back to alphabetical when no specific grants were requested)
+        # -- don't re-sort here.
+        total_amount = sum((g.grant_amount for g, _ in rows if g.grant_amount is not None), Decimal("0"))
         html_content = template.render(
             report_type="full",
             filters_description=filters_description,
-            rows=sorted_rows,
-            total_count=len(sorted_rows),
+            rows=rows,
+            total_count=len(rows),
             total_amount_display=f"${total_amount:,.2f}",
             generated_date=date.today().strftime("%m/%d/%Y"),
             generated_by=generated_by_name,
