@@ -6,6 +6,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from app.models.models import Grant, GrantAward, GrantNote
+from app.services.grant_status import compute_status
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
 _env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
@@ -61,6 +62,54 @@ def render_grant_awards_report_pdf(awards: list[GrantAward], generated_by_name: 
 
 def build_grant_awards_report_filename() -> str:
     return f"grants_awarded_report_{date.today().isoformat()}.pdf"
+
+
+def render_grants_report_pdf(grants: list[Grant], report_type: str, generated_by_name: str) -> bytes:
+    from weasyprint import HTML  # imported lazily: see note in render_grant_pdf above.
+
+    template = _env.get_template("grants_report.html")
+    rows = [(g, compute_status(g)) for g in grants]
+
+    if report_type == "summary":
+        active_rows = [(g, s) for g, s in rows if s == "Active"]
+        closed_count = sum(1 for _, s in rows if s == "Closed")
+        active_total = sum((g.grant_amount for g, _ in active_rows if g.grant_amount is not None), Decimal("0"))
+
+        by_grantor: dict[str, dict] = {}
+        for g, _ in active_rows:
+            key = g.grantor or "Unspecified"
+            entry = by_grantor.setdefault(key, {"grantor": key, "count": 0, "total": Decimal("0")})
+            entry["count"] += 1
+            entry["total"] += g.grant_amount or Decimal("0")
+        grantor_rows = sorted(by_grantor.values(), key=lambda r: r["total"], reverse=True)
+
+        html_content = template.render(
+            report_type="summary",
+            active_count=len(active_rows),
+            closed_count=closed_count,
+            active_total_display=f"${active_total:,.2f}",
+            grantor_rows=[
+                {"grantor": r["grantor"], "count": r["count"], "total_display": f"${r['total']:,.2f}"}
+                for r in grantor_rows
+            ],
+            generated_date=date.today().strftime("%m/%d/%Y"),
+            generated_by=generated_by_name,
+        )
+    else:
+        full_rows = sorted(rows, key=lambda gs: (gs[0].project_name or "").lower())
+        html_content = template.render(
+            report_type="full",
+            rows=full_rows,
+            total_count=len(full_rows),
+            generated_date=date.today().strftime("%m/%d/%Y"),
+            generated_by=generated_by_name,
+        )
+
+    return HTML(string=html_content).write_pdf()
+
+
+def build_grants_report_filename(report_type: str) -> str:
+    return f"grants_{report_type}_report_{date.today().isoformat()}.pdf"
 
 
 def render_monthly_report_pdf(data: dict, generated_by_name: str) -> bytes:

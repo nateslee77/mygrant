@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: letter landscape; margin: 1.5cm 1.8cm; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1F2937; font-size: 9.5pt; line-height: 1.4; }
+  h1 { font-size: 18pt; margin-bottom: 2px; }
+  h2 { font-size: 12pt; margin: 18px 0 6px; }
+  .subheader { color: #6B7280; font-size: 10pt; margin-bottom: 16px; }
+  .summary { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
+  .summary-box { border: 1px solid #E5E7EB; border-radius: 6px; padding: 8px 14px; }
+  .summary-label { color: #6B7280; font-size: 9pt; }
+  .summary-value { font-size: 14pt; font-weight: 700; }
+  table.report { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  table.report th { text-align: left; background-color: #F9FAFB; color: #6B7280; font-size: 9pt; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #E5E7EB; }
+  table.report td { padding: 6px 8px; border-bottom: 1px solid #F3F4F6; vertical-align: top; }
+  table.report tr:nth-child(even) td { background-color: #FAFAFA; }
+  .status-pill { display: inline-block; padding: 1px 8px; border-radius: 9999px; font-size: 8pt; font-weight: 600; white-space: nowrap; }
+  .status-active { background-color: #DCFCE7; color: #16A34A; }
+  .status-closed { background-color: #F3F4F6; color: #6B7280; }
+  .status-withdrawn { background-color: #FEE2E2; color: #DC2626; }
+  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #E5E7EB; color: #6B7280; font-size: 9pt; }
+</style>
+</head>
+<body>
+
+  <h1>{{ "All Grants — Full Report" if report_type == "full" else "All Grants — Summary Report" }}</h1>
+  <div class="subheader">LA County Parks &amp; Recreation Grants Management System</div>
+
+  {% if report_type == "summary" %}
+  <div class="summary">
+    <div class="summary-box">
+      <div class="summary-label">Active Grants</div>
+      <div class="summary-value">{{ active_count }}</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-label">Closed Grants</div>
+      <div class="summary-value">{{ closed_count }}</div>
+    </div>
+    <div class="summary-box">
+      <div class="summary-label">Active Grants Under Management</div>
+      <div class="summary-value">{{ active_count }} &middot; {{ active_total_display }}</div>
+    </div>
+  </div>
+
+  <h2>Active Grants by Grantor</h2>
+  <table class="report">
+    <thead>
+      <tr><th>Grantor</th><th># of Grants</th><th>Total Amount</th></tr>
+    </thead>
+    <tbody>
+      {% for r in grantor_rows %}
+      <tr>
+        <td>{{ r.grantor }}</td>
+        <td>{{ r.count }}</td>
+        <td>{{ r.total_display }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3">No active grants recorded.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="summary">
+    <div class="summary-box">
+      <div class="summary-label">Total Grants</div>
+      <div class="summary-value">{{ total_count }}</div>
+    </div>
+  </div>
+
+  <table class="report">
+    <thead>
+      <tr>
+        <th>Project Name</th>
+        <th>Status</th>
+        <th>Grantor</th>
+        <th>Funding Source</th>
+        <th>District</th>
+        <th>Current Exp Date</th>
+        <th>Grant Amount</th>
+        <th>Grants Manager</th>
+        <th>Program Manager</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for grant, grant_status in rows %}
+      <tr>
+        <td>{{ grant.project_name }}</td>
+        <td><span class="status-pill status-{{ grant_status|lower }}">{{ grant_status }}</span></td>
+        <td>{{ grant.grantor or "—" }}</td>
+        <td>{{ grant.funding_source or "—" }}</td>
+        <td>{{ grant.district if grant.district is not none else "—" }}</td>
+        <td>{{ grant.current_exp_date.strftime("%m/%d/%Y") if grant.current_exp_date else "—" }}</td>
+        <td>{{ "${:,.2f}".format(grant.grant_amount) if grant.grant_amount is not none else "—" }}</td>
+        <td>{{ grant.grants_manager or "—" }}</td>
+        <td>{{ grant.program_manager or "—" }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="9">No grants recorded.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <div class="footer">
+    Generated on {{ generated_date }} by {{ generated_by }}.
+  </div>
+
+</body>
+</html>

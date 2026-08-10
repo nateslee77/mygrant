@@ -21,7 +21,7 @@ from app.schemas.grant import (
 )
 from app.services.audit import write_audit_log
 from app.services.grant_status import compute_status
-from app.services.pdf import build_snapshot_filename, render_grant_pdf
+from app.services.pdf import build_grants_report_filename, build_snapshot_filename, render_grant_pdf, render_grants_report_pdf
 
 router = APIRouter(prefix="/grants", tags=["grants"])
 
@@ -112,6 +112,26 @@ def list_grants(
         total=total,
         page=page,
         page_size=page_size,
+    )
+
+
+@router.get("/report/pdf")
+def download_grants_report(
+    report_type: str = Query(default="full"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if report_type not in ("full", "summary"):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "report_type must be 'full' or 'summary'")
+
+    grants = db.scalars(select(Grant)).all()
+    pdf_bytes = render_grants_report_pdf(grants, report_type, user.name)
+    filename = build_grants_report_filename(report_type)
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

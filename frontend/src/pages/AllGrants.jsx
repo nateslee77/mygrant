@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ColumnFilterMenu from "../components/ColumnFilterMenu";
 import OpenLinkButton from "../components/OpenLinkButton";
@@ -7,6 +7,7 @@ import StatusPill from "../components/StatusPill";
 import StickyHorizontalScrollbar from "../components/StickyHorizontalScrollbar";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { downloadFile } from "../lib/download";
 import { formatCurrency, formatDate } from "../lib/format";
 
 const TABS = [
@@ -49,6 +50,26 @@ export default function AllGrants() {
   const [sortKey, setSortKey] = useState("project_name");
   const [sortDir, setSortDir] = useState("asc");
   const scrollContainerRef = useRef(null);
+
+  const [reportMenuOpen, setReportMenuOpen] = useState(false);
+  const reportMenuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (reportMenuRef.current && !reportMenuRef.current.contains(e.target)) setReportMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  async function handleDownloadReport(reportType) {
+    setReportMenuOpen(false);
+    await downloadFile("/grants/report/pdf", {
+      params: { report_type: reportType },
+      fallbackFilename: `grants_${reportType}_report.pdf`,
+      mimeType: "application/pdf",
+    });
+  }
 
   const activeColumnFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
   const hasActiveFilters = Boolean(search || expiringWithin || activeColumnFilterCount > 0);
@@ -183,14 +204,51 @@ export default function AllGrants() {
           </span>
         </div>
 
-        {canEdit && (
-          <button
-            onClick={() => navigate("/grants/new")}
-            className="bg-accent hover:bg-accent-dark text-white text-sm font-medium px-4 py-2 rounded-md"
-          >
-            + New Grant
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <div className="relative" ref={reportMenuRef}>
+            <button
+              onClick={() => setReportMenuOpen((o) => !o)}
+              className="bg-white border border-gray-300 hover:bg-gray-50 text-sm font-medium px-4 py-2 rounded-md inline-flex items-center gap-1.5"
+            >
+              Download Report
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={`transition-transform ${reportMenuOpen ? "rotate-180" : ""}`}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {reportMenuOpen && (
+              <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <button
+                  onClick={() => handleDownloadReport("full")}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Full Report (PDF)
+                </button>
+                <button
+                  onClick={() => handleDownloadReport("summary")}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Summary Report (PDF)
+                </button>
+              </div>
+            )}
+          </div>
+          {canEdit && (
+            <button
+              onClick={() => navigate("/grants/new")}
+              className="bg-accent hover:bg-accent-dark text-white text-sm font-medium px-4 py-2 rounded-md"
+            >
+              + New Grant
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4">
