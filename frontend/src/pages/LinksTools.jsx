@@ -5,6 +5,12 @@ const SECTIONS = [
     title: "Park & District Maps",
     links: [
       {
+        label: "Park Planning Viewer 1.0",
+        description:
+          "ArcGIS map viewer for park planning — browse park sites and planning-relevant GIS layers for the Grants Administration section's project work.",
+        url: "https://www.arcgis.com/apps/webappviewer/index.html?id=54d3199db4314d79825d8f726b6db0b6",
+      },
+      {
         label: "LA Parks Portal — Park Finder Map",
         description:
           "Interactive countywide map of every public park, searchable and filterable by park classification and operating agency.",

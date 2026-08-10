@@ -46,6 +46,7 @@ export default function AllGrants() {
   const [tab, setTab] = useState(null);
   const [search, setSearch] = useState("");
   const [expiringWithin, setExpiringWithin] = useState("");
+  const [expiredOnly, setExpiredOnly] = useState(false);
   const [columnFilters, setColumnFilters] = useState({}); // { [columnKey]: string[] of selected values }
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10); // number, or "all"
@@ -74,6 +75,7 @@ export default function AllGrants() {
       const opt = EXPIRING_OPTIONS.find((o) => o.value === expiringWithin);
       if (opt) parts.push(`Expiring: ${opt.label}`);
     }
+    if (expiredOnly) parts.push("Expired only");
     Object.entries(columnFilters).forEach(([key, values]) => {
       if (!values || values.length === 0) return;
       const label = columns.find((c) => c.key === key)?.label || key;
@@ -102,7 +104,7 @@ export default function AllGrants() {
   }
 
   const activeColumnFilterCount = Object.values(columnFilters).filter((v) => v && v.length > 0).length;
-  const hasActiveFilters = Boolean(search || expiringWithin || activeColumnFilterCount > 0);
+  const hasActiveFilters = Boolean(search || expiringWithin || expiredOnly || activeColumnFilterCount > 0);
 
   const queryParams = {
     page: 1,
@@ -136,14 +138,15 @@ export default function AllGrants() {
 
   const filteredItems = useMemo(() => {
     const items = data?.items || [];
-    return items.filter((g) =>
-      Object.entries(columnFilters).every(([key, selected]) => {
+    return items.filter((g) => {
+      if (expiredOnly && !g.is_expired) return false;
+      return Object.entries(columnFilters).every(([key, selected]) => {
         if (!selected || selected.length === 0) return true;
         const value = key === "district" ? String(g[key] ?? "") : g[key];
         return selected.includes(value);
-      })
-    );
-  }, [data, columnFilters]);
+      });
+    });
+  }, [data, columnFilters, expiredOnly]);
 
   const sortedItems = useMemo(() => {
     const copy = [...filteredItems];
@@ -190,6 +193,7 @@ export default function AllGrants() {
   function clearFilters() {
     setSearch("");
     setExpiringWithin("");
+    setExpiredOnly(false);
     setColumnFilters({});
     setPage(1);
   }
@@ -295,7 +299,7 @@ export default function AllGrants() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Field label="Search">
             <input
               type="text"
@@ -317,6 +321,19 @@ export default function AllGrants() {
                 </option>
               ))}
             </select>
+          </Field>
+          <Field label="Expired">
+            <button
+              type="button"
+              onClick={() => resetToPageOne(setExpiredOnly)(!expiredOnly)}
+              className={`w-full px-3 py-1.5 rounded-md text-sm font-medium border text-left ${
+                expiredOnly
+                  ? "bg-amber-100 text-amber-700 border-amber-300"
+                  : "bg-white text-gray-500 border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              {expiredOnly ? "Showing expired only" : "Show expired only"}
+            </button>
           </Field>
           <div className="flex items-end">
             <p className="text-xs text-gray-400">
