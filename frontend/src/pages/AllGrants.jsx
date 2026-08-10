@@ -13,9 +13,9 @@ import { downloadFile } from "../lib/download";
 import { formatCurrency, formatDate } from "../lib/format";
 
 const TABS = [
-  { label: "All", value: null },
   { label: "Active", value: "Active" },
   { label: "Closed", value: "Closed" },
+  { label: "All", value: null },
 ];
 
 const EXPIRATION_FILTERS = [
@@ -64,7 +64,7 @@ export default function AllGrants() {
   const { user } = useAuth();
   const canEdit = user?.role === "admin" || user?.role === "editor";
 
-  const [tab, setTab] = useState(null);
+  const [tab, setTab] = useState("Active");
   const [search, setSearch] = useState("");
   const [expirationFilter, setExpirationFilter] = useState(null);
   const [columnFilters, setColumnFilters] = useState({}); // { [columnKey]: string[] of selected values }
