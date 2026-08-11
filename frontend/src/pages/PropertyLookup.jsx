@@ -4,6 +4,8 @@ const PROPERTY_DETAILS_URL =
   "https://assessorportal.assessor.lacounty.gov/webcenter/portal/assessorportal/pages_propertyDetails";
 const OWNERSHIP_SNAPSHOT_URL =
   "https://assessorportal.assessor.lacounty.gov/webcenter/portal/assessorportal/Ownership+Snapshot";
+const ASSESSOR_PORTAL_HOME_URL =
+  "https://assessorportal.assessor.lacounty.gov/webcenter/portal/assessorportal/pages_assessorhome";
 
 function buildPropertyDetailsUrl(ain) {
   return `${PROPERTY_DETAILS_URL}?ain=${ain}&pType=R&searchType=A&stype=A`;
@@ -31,6 +33,20 @@ export default function PropertyLookup() {
 
   return (
     <div className="max-w-xl space-y-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="text-sm font-semibold text-gray-500 mb-1">LA County Assessor Portal</h2>
+        <p className="text-sm text-gray-500 mb-4">Skip the AIN lookup below and go straight to the portal itself.</p>
+        <a
+          href={ASSESSOR_PORTAL_HOME_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-dark text-white text-sm font-medium px-4 py-2 rounded-md"
+        >
+          Open Assessor Portal
+          <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h2 className="text-sm font-semibold text-gray-500 mb-1">LA County Assessor Lookup</h2>
         <p className="text-sm text-gray-500 mb-4">
