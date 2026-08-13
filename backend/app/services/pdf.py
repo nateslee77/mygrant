@@ -74,7 +74,6 @@ def render_grants_report_pdf(
 
     if report_type == "summary":
         active_rows = [(g, s) for g, s in rows if s == "Active"]
-        closed_count = sum(1 for _, s in rows if s == "Closed")
         active_total = sum((g.grant_amount for g, _ in active_rows if g.grant_amount is not None), Decimal("0"))
 
         by_grantor: dict[str, dict] = {}
@@ -89,7 +88,6 @@ def render_grants_report_pdf(
             report_type="summary",
             filters_description=filters_description,
             active_count=len(active_rows),
-            closed_count=closed_count,
             active_total_display=f"${active_total:,.2f}",
             grantor_rows=[
                 {"grantor": r["grantor"], "count": r["count"], "total_display": f"${r['total']:,.2f}"}
