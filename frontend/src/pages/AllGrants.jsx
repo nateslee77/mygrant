@@ -105,19 +105,22 @@ export default function AllGrants() {
     return parts.join("; ");
   }
 
-  async function handleDownloadReport(reportType) {
+  async function handleDownloadReport(reportType, format = "pdf") {
     setReportMenuOpen(false);
     setDownloadingReport(reportType);
     try {
-      await downloadFile("/grants/report/pdf", {
+      await downloadFile(`/grants/report/${format}`, {
         method: "post",
         data: {
           report_type: reportType,
           grant_ids: sortedItems.map((g) => g.id),
           filters_description: buildFiltersDescription() || null,
         },
-        fallbackFilename: `grants_${reportType}_report.pdf`,
-        mimeType: "application/pdf",
+        fallbackFilename: `grants_${reportType}_report.${format}`,
+        mimeType:
+          format === "docx"
+            ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            : "application/pdf",
       });
     } finally {
       setDownloadingReport(null);
@@ -303,6 +306,12 @@ export default function AllGrants() {
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   Summary Report (PDF)
+                </button>
+                <button
+                  onClick={() => handleDownloadReport("summary", "docx")}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Summary Report (Word)
                 </button>
               </div>
             )}

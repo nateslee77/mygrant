@@ -64,6 +64,21 @@ def build_grant_awards_report_filename() -> str:
     return f"grants_awarded_report_{date.today().isoformat()}.pdf"
 
 
+def _summarize_active_grants(grants: list[Grant]) -> tuple[list[Grant], Decimal, list[dict]]:
+    active_rows = [g for g in grants if compute_status(g) == "Active"]
+    active_total = sum((g.grant_amount for g in active_rows if g.grant_amount is not None), Decimal("0"))
+
+    by_grantor: dict[str, dict] = {}
+    for g in active_rows:
+        key = g.grantor or "Unspecified"
+        entry = by_grantor.setdefault(key, {"grantor": key, "count": 0, "total": Decimal("0")})
+        entry["count"] += 1
+        entry["total"] += g.grant_amount or Decimal("0")
+    grantor_rows = sorted(by_grantor.values(), key=lambda r: r["total"], reverse=True)
+
+    return active_rows, active_total, grantor_rows
+
+
 def render_grants_report_pdf(
     grants: list[Grant], report_type: str, generated_by_name: str, filters_description: str | None = None
 ) -> bytes:
@@ -73,16 +88,7 @@ def render_grants_report_pdf(
     rows = [(g, compute_status(g)) for g in grants]
 
     if report_type == "summary":
-        active_rows = [(g, s) for g, s in rows if s == "Active"]
-        active_total = sum((g.grant_amount for g, _ in active_rows if g.grant_amount is not None), Decimal("0"))
-
-        by_grantor: dict[str, dict] = {}
-        for g, _ in active_rows:
-            key = g.grantor or "Unspecified"
-            entry = by_grantor.setdefault(key, {"grantor": key, "count": 0, "total": Decimal("0")})
-            entry["count"] += 1
-            entry["total"] += g.grant_amount or Decimal("0")
-        grantor_rows = sorted(by_grantor.values(), key=lambda r: r["total"], reverse=True)
+        active_rows, active_total, grantor_rows = _summarize_active_grants(grants)
 
         html_content = template.render(
             report_type="summary",
@@ -115,8 +121,56 @@ def render_grants_report_pdf(
     return HTML(string=html_content).write_pdf()
 
 
-def build_grants_report_filename(report_type: str) -> str:
-    return f"grants_{report_type}_report_{date.today().isoformat()}.pdf"
+def build_grants_report_filename(report_type: str, ext: str = "pdf") -> str:
+    return f"grants_{report_type}_report_{date.today().isoformat()}.{ext}"
+
+
+def render_grants_summary_report_docx(
+    grants: list[Grant], generated_by_name: str, filters_description: str | None = None
+) -> bytes:
+    from io import BytesIO
+
+    from docx import Document
+
+    active_rows, active_total, grantor_rows = _summarize_active_grants(grants)
+
+    document = Document()
+    document.add_heading("All Grants — Summary Report", level=0)
+    subheader = document.add_paragraph("LA County Parks & Recreation Grants Management System")
+    subheader.runs[0].italic = True
+    if filters_description:
+        filters_para = document.add_paragraph(f"Filters applied: {filters_description}")
+        filters_para.runs[0].italic = True
+
+    stats = document.add_paragraph()
+    stats.add_run(f"Active Grants: {len(active_rows)}").bold = True
+    stats.add_run("     ")
+    stats.add_run(f"Active Grants Under Management: {len(active_rows)} · ${active_total:,.2f}").bold = True
+
+    document.add_heading("Active Grants by Grantor", level=1)
+    if grantor_rows:
+        table = document.add_table(rows=1, cols=3)
+        table.style = "Light Grid Accent 1"
+        header_cells = table.rows[0].cells
+        for i, header in enumerate(["Grantor", "# of Grants", "Total Amount"]):
+            header_cells[i].text = header
+            for run in header_cells[i].paragraphs[0].runs:
+                run.bold = True
+        for r in grantor_rows:
+            cells = table.add_row().cells
+            cells[0].text = r["grantor"]
+            cells[1].text = str(r["count"])
+            cells[2].text = f"${r['total']:,.2f}"
+    else:
+        empty = document.add_paragraph("No active grants recorded.")
+        empty.runs[0].italic = True
+
+    footer = document.add_paragraph(f"Generated on {date.today().strftime('%m/%d/%Y')} by {generated_by_name}.")
+    footer.runs[0].italic = True
+
+    buffer = BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
 
 
 def render_monthly_report_pdf(data: dict, generated_by_name: str) -> bytes:

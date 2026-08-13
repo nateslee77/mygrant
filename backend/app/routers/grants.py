@@ -22,7 +22,13 @@ from app.schemas.grant import (
 )
 from app.services.audit import write_audit_log
 from app.services.grant_status import compute_status, is_expired
-from app.services.pdf import build_grants_report_filename, build_snapshot_filename, render_grant_pdf, render_grants_report_pdf
+from app.services.pdf import (
+    build_grants_report_filename,
+    build_snapshot_filename,
+    render_grant_pdf,
+    render_grants_report_pdf,
+    render_grants_summary_report_docx,
+)
 
 router = APIRouter(prefix="/grants", tags=["grants"])
 
@@ -118,12 +124,7 @@ def list_grants(
     )
 
 
-@router.post("/report/pdf")
-def download_grants_report(
-    payload: GrantsReportRequest,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
+def _resolve_report_grants(db: Session, payload: GrantsReportRequest) -> list[Grant]:
     query = select(Grant)
     if payload.grant_ids is not None:
         query = query.where(Grant.id.in_(payload.grant_ids)) if payload.grant_ids else query.where(False)
@@ -136,13 +137,39 @@ def download_grants_report(
     if payload.grant_ids:
         order = {gid: i for i, gid in enumerate(payload.grant_ids)}
         grants = sorted(grants, key=lambda g: order.get(g.id, len(order)))
+    return grants
 
+
+@router.post("/report/pdf")
+def download_grants_report(
+    payload: GrantsReportRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    grants = _resolve_report_grants(db, payload)
     pdf_bytes = render_grants_report_pdf(grants, payload.report_type, user.name, payload.filters_description)
     filename = build_grants_report_filename(payload.report_type)
 
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/report/docx")
+def download_grants_summary_report_docx(
+    payload: GrantsReportRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    grants = _resolve_report_grants(db, payload)
+    docx_bytes = render_grants_summary_report_docx(grants, user.name, payload.filters_description)
+    filename = build_grants_report_filename("summary", "docx")
+
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
