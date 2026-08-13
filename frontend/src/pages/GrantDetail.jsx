@@ -34,6 +34,7 @@ export default function GrantDetail() {
     mutationFn: async (patch) => (await api.patch(`/grants/${id}`, patch)).data,
     onSuccess: (data) => {
       queryClient.setQueryData(["grant", id], data);
+      queryClient.invalidateQueries({ queryKey: ["grants"] });
     },
   });
 
@@ -63,12 +64,14 @@ export default function GrantDetail() {
     mutationFn: async (withdrawn) => (await api.patch(`/grants/${id}`, { withdrawn })).data,
     onSuccess: (data) => {
       queryClient.setQueryData(["grant", id], data);
+      queryClient.invalidateQueries({ queryKey: ["grants"] });
     },
   });
 
   const deleteGrant = useMutation({
     mutationFn: async () => api.delete(`/grants/${id}`),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["grants"] });
       navigate("/grants");
     },
   });
